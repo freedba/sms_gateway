@@ -41,6 +41,7 @@ Make go binary:
   stage: make
   script:
     - go env -w GOPROXY=https://goproxy.cn,direct
+    - if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop; else git checkout master; fi
     - make build
   artifacts:
     paths:
