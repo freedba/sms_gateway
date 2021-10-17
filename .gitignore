@@ -1,8 +1,8 @@
-cmd/main
-cmd/server
+apps/main
+apps/server
 cmd/*.exe
-cmd/client
-cmd/test_producer
+apps/client
+apps/test_producer
 test
 logs
 .idea

@@ -1,7 +1,7 @@
 .PHONY:all build clean run check cover lint docker help sms_gateway
 BUILD_NAME:=bin/sms_gateway
 BUILD_VERSION := 1.0
-SOURCE=cmd/main.go
+SOURCE=apps/main.go
 
 all: deps build
 deps:

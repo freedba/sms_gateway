@@ -15,33 +15,6 @@ listen = "0.0.0.0:7890"
 threshold = 80
 maxchannels = 3
 
-[channels]
-    [channels.231]
-        host = "127.0.0.1"
-        port= "7890"
-        source_addr= "C80383"
-        shared_secret= "oXH93UHH"
-        service_id= "C80383"
-        id= 231
-        dest_id= "1069440668"
-        title= "系统自测账户"
-        connect_num= 1
-        flow_velocity= 300
-        updated_at= 1614666009
-
-    [channels.194]
-        host= "117.50.59.40"
-        port= 7890
-        source_addr= "232779"
-        shared_secret= "a.1234567"
-        service_id= "EELP"
-        id= 194
-        dest_id= "779232779"
-        title= "创蓝压测通道"
-        connect_num= 1
-        flow_velocity= 300
-        updated_at= 1607335791
-
 [hbtime]
     timeout = 60
     delay = 10
