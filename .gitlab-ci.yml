@@ -46,6 +46,7 @@ Make go binary:
   artifacts:
     paths:
       - bin
+    expire_in: "10 min"
   only:
     - develop
     - tags
