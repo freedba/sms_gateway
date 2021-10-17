@@ -4,6 +4,7 @@ cmd/*.exe
 cmd/client
 cmd/test_producer
 test
+logs
 .idea
 .vscode
 
