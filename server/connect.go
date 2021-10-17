@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/chenhg5/collection"
 	cmap "github.com/orcaman/concurrent-map"
 	"io"
@@ -143,7 +141,6 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		rw:                    protocol.NewPacketRW(conn),
 	}
 
-	var buf []byte
 	h := &protocol.Header{}
 	s.rw.ReadTimeout = 10
 	data, err := s.rw.ReadPacket()
@@ -159,14 +156,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		goto EXIT
 	}
 
-	buf = data[12:]
-	if len(buf) != 27 {
-		err = errors.New(fmt.Sprintf("invalid message length, buf len:%d", len(buf)))
-		logger.Error().Msgf("len(buf) != 27 error:%d", err)
-		goto EXIT
-	}
-
-	resp, err = s.NewAuth(buf, sess)
+	resp, err = s.NewAuth(data[12:], sess)
 	if err != nil {
 		logger.Error().Msgf("s.NewAuth error: %v", err)
 		goto EXIT
@@ -191,6 +181,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.RunId = runId
 	s.rw.RunId = runId
 	InitChan(runId) //go通道缓冲初始化
+
 	s.waitGroup.Wrap(func() { s.ReadLoop() })
 	time.Sleep(time.Duration(10) * time.Millisecond)
 	s.waitGroup.Wrap(func() { SubmitMsgIdToQueue(s) })
@@ -213,7 +204,6 @@ EXIT:
 }
 
 func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error) {
-
 	var err error
 
 	req := &protocol.ConnReq{}
@@ -225,6 +215,14 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	resp.Status = 0
 	sourceAddr := req.SourceAddr
 
+	if len(buf) != 27 {
+		//err = errors.New(fmt.Sprintf("invalid message length, buf len:%d", len(buf)))
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
+		logger.Error().Msgf("len(buf) != 27 error:%v", err)
+		resp.Status = protocol.ErrnoConnectInvalidStruct
+		return nil, err
+	}
+
 	isLogin, ok := sess.Users[sourceAddr.String()]
 	if ok && isLogin > 0 {
 		logger.Error().Msgf("账号(%s) 已登录过", sourceAddr.String())
@@ -234,9 +232,9 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	rKey := "index:user:userinfo:"
 	str := models.RedisHGet(rKey, sourceAddr.String())
 	if str == "" {
-		logger.Error().Msgf("账号(%s) 不存在", sourceAddr.String())
-		err = utils.Errs[utils.ErrNoConnInvalidStruct]
-		resp.Status = utils.ErrNoConnAuthFailed
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
+		logger.Error().Msgf("账号(%s) 不存在, error:%v", sourceAddr.String(), err)
+		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
@@ -245,8 +243,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	err = json.Unmarshal([]byte(str), &account)
 	if err != nil {
 		logger.Error().Msgf("accounts json.unmarshal error:%v, exit...", err)
-		resp.Status = utils.ErrNoConnInvalidStruct
-		err = utils.Errs[utils.ErrNoConnInvalidStruct]
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
+		resp.Status = protocol.ErrnoConnectInvalidStruct
 		return resp, err
 	}
 
@@ -254,16 +252,16 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	whiteList := strings.Split(account.AccountHost, ",")
 	if !collection.Collect(whiteList).Contains(sess.RemoteAddr) {
 		logger.Error().Msgf("账号(%s) 登录ip地址(%s)非法!", sourceAddr.String(), sess.RemoteAddr)
-		resp.Status = utils.ErrNoConnInvalidSrcAddr
-		err = utils.Errs[utils.ErrNoConnInvalidSrcAddr]
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidSrcAddr]
+		resp.Status = protocol.ErrnoConnectInvalidSrcAddr
 		return resp, err
 	}
 
 	authSrc, err := protocol.GenAuthSrc(req.SourceAddr.String(), account.CmppPassword, req.Timestamp)
 	if err != nil {
 		logger.Error().Msgf("通道(%s) 生成authSrc信息错误：%v", sourceAddr.String(), err, authSrc)
-		resp.Status = utils.ErrNoConnInvalidSrcAddr
-		err = utils.Errs[utils.ErrNoConnInvalidSrcAddr]
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
+		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
@@ -271,16 +269,16 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	if !bytes.Equal(authSrc, reqAuthSrc) {
 		logger.Error().Msgf("账号(%s) auth failed", sourceAddr.String())
 		logger.Error().Msgf("authsrc: %v, req.Authsrc: %v", authSrc, reqAuthSrc)
-		err = utils.Errs[utils.ErrNoConnAuthFailed]
-		resp.Status = utils.ErrNoConnAuthFailed
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
+		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
 	authImsg, err := protocol.GenRespAuthSrc(resp.Status, string(authSrc), account.CmppPassword)
 	if err != nil {
 		logger.Debug().Msgf("通道(%s) 生成authImsg信息错误：%v", sourceAddr.String(), err, authImsg)
-		resp.Status = utils.ErrNoConnAuthFailed
-		err = utils.Errs[utils.ErrNoConnAuthFailed]
+		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
+		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
