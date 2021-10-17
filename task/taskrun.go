@@ -51,7 +51,6 @@ func ServerSupervisory() {
 func LoopSrvMain() {
 	//var wg sync.WaitGroup
 	var err error
-	utils.ErrInit()
 	models.InitDB()
 	models.InitRedis()
 	server.InitNodeId()
