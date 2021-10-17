@@ -216,7 +216,6 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	sourceAddr := req.SourceAddr
 
 	if len(buf) != 27 {
-		//err = errors.New(fmt.Sprintf("invalid message length, buf len:%d", len(buf)))
 		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
 		logger.Error().Msgf("len(buf) != 27 error:%v", err)
 		resp.Status = protocol.ErrnoConnectInvalidStruct
