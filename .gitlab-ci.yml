@@ -1,0 +1,102 @@
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Go.gitlab-ci.yml
+# ver:2021/10/17/01
+
+image: golang:1.17.2
+
+variables:
+  # Please edit to your GitLab project
+  PROJ_NAME: sms_gateway
+  REPO_NAME: git@gitlab.fulongzy.com:backend/${PROJ_NAME}.git
+  DEP_PROJ_NAME: sms_lib
+
+
+# The problem is that to be able to use go get, one needs to put
+# the repository in the $GOPATH. So for example if your gitlab domain
+# is gitlab.com, and that your repository is namespace/project, and
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/gitlab.com/namespace/project
+# Thus, making a symbolic link corrects this.
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - mkdir $GOPATH/src/$REPO_NAME/etc
+  - mkdir /tmp/$DEP_PROJ_NAME
+  - git clone http://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.fulongzy.com/backend/$DEP_PROJ_NAME.git /tmp/$DEP_PROJ_NAME
+  - ln -svf /tmp/$DEP_PROJ_NAME $CI_PROJECT_DIR/../$DEP_PROJ_NAME
+  - ln -svf /tmp/$DEP_PROJ_NAME $GOPATH/src/$(dirname $REPO_NAME)/$DEP_PROJ_NAME
+
+stages:
+  - make
+  - build
+  - push
+  - deploy
+
+Make go binary:
+  tags:
+    - sms
+  stage: make
+  script:
+    - go env -w GOPROXY=https://goproxy.cn,direct
+    - make build
+  artifacts:
+    paths:
+      - bin
+  only:
+    - develop
+    - tags
+
+Build dev docker image:
+  image: docker:19.03.13
+  tags:
+    - sms
+  stage: build
+  before_script:
+    - echo "https://mirrors.cloud.tencent.com/alpine/latest-stable/main" > /etc/apk/repositories
+    - apk --no-cache add tzdata
+    - cp /usr/share/zoneinfo/Asia/Shanghai config/localtime
+  script:
+    - docker build -t ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest .
+  only:
+    - develop
+
+Push dev docker image:
+  image: docker:19.03.13
+  tags:
+    - sms
+  stage: push
+  before_script:
+    - echo ${CI_REGISTRY_TENCENT_PASSWORD} | docker login ${CI_REGISTRY_TENCENT_URL} --username ${CI_REGISTRY_TENCENT_USER} --password-stdin
+  script:
+    - docker push ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest
+  only:
+    - develop
+
+Build prd docker image:
+  image: docker:19.03.13
+  tags:
+    - sms
+  stage: build
+  before_script:
+    - echo "https://mirrors.cloud.tencent.com/alpine/latest-stable/main" > /etc/apk/repositories
+    - apk --no-cache add tzdata
+    - cp /usr/share/zoneinfo/Asia/Shanghai config/localtime
+  script:
+    - docker build -t ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest .
+  only:
+    - tags
+
+Push prd docker image:
+  image: docker:19.03.13
+  tags:
+    - sms
+  stage: push
+  before_script:
+    - echo ${CI_REGISTRY_TENCENT_PASSWORD} | docker login ${CI_REGISTRY_TENCENT_URL} --username ${CI_REGISTRY_TENCENT_USER} --password-stdin
+  script:
+    - docker push ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest
+  only:
+    - tags

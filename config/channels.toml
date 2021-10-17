@@ -1,0 +1,80 @@
+title = "channels"
+
+testid = 0
+
+msgnum = -1
+rate = 100
+gap = 1000
+nsqlookupds = ["nsq01.fulong.top:4161","nsq02.fulong.top:4161","nsq03.fulong.top:4161"]
+#nsqlookupds = ["127.0.0.1:4161"]
+#nsqd = ["172.16.0.4:4150","172.16.0.14:4150","172.16.0.17:4150"]
+# nsqd = ["172.16.0.17:4150"]
+runid = [230]
+qlen = 20
+listen = "0.0.0.0:7890"
+threshold = 80
+maxchannels = 3
+
+[channels]
+    [channels.231]
+        host = "127.0.0.1"
+        port= "7890"
+        source_addr= "C80383"
+        shared_secret= "oXH93UHH"
+        service_id= "C80383"
+        id= 231
+        dest_id= "1069440668"
+        title= "系统自测账户"
+        connect_num= 1
+        flow_velocity= 300
+        updated_at= 1614666009
+
+    [channels.194]
+        host= "117.50.59.40"
+        port= 7890
+        source_addr= "232779"
+        shared_secret= "a.1234567"
+        service_id= "EELP"
+        id= 194
+        dest_id= "779232779"
+        title= "创蓝压测通道"
+        connect_num= 1
+        flow_velocity= 300
+        updated_at= 1607335791
+
+[hbtime]
+    timeout = 60
+    delay = 10
+    retry = 3
+
+[mysql]
+    user = "root"
+    passwd = "e4ZZH7JMgh9e"
+    host = "mysql01.fulong.top:3306"
+
+[redis]
+    host = "redis01.fulong.top:6379"
+    user = ""
+    passwd = "fulong@2021"
+    db = "0"
+    key = "index:account:infos:cmppaccounts"
+
+[topicprefix]
+    sender = "topic_"
+    deliver = "todb_deliver_info_msgid_forchannel_"
+    submitresp = "todb_task_send_msgid_forchannel_"
+    mosms = "tomosms_msgid_forchannel_"
+    deliversend = "touser_deliver_info_msgid_forchannel_"
+    delivermo = "touser_delivermo_info_msgid_forchannel_"
+
+[logconf]
+    consoleloggingenabled = true
+    encodeLogsasjson = false
+    fileLoggingenabled = true
+    directory = "/data/logs/"
+    filename = "sms_gateway.log"
+    maxsize = 10
+    maxbackups = 10
+    maxage = 10
+    localtime = true
+    compress = false

@@ -1,0 +1,9 @@
+cmd/main
+cmd/server
+cmd/*.exe
+cmd/client
+cmd/test_producer
+test
+.idea
+.vscode
+
