@@ -148,7 +148,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		logger.Error().Msgf("s.rw.ReadPacket error:%v,read len:%d", err)
 		goto EXIT
 	}
-	//s.rw.Reset()
+	s.rw.Reset()
 
 	h.UnPack(data[:12])
 	if h.CmdId != protocol.CMPP_CONNECT {
