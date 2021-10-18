@@ -349,7 +349,7 @@ func DeliverSend(s *SrvConn) {
 		goto EXIT
 	}
 
-	topicPrefix = cfg.DeliverMo
+	topicPrefix = cfg.DeliverMoSend
 	topicName = topicPrefix + strconv.FormatInt(chid, 10)
 	moNmc, err = models.Consumer(topicPrefix, int(chid), 1)
 	if err != nil {

@@ -30,12 +30,12 @@ maxchannels = 3
     key = "index:account:infos:cmppaccounts"
 
 [topicprefix]
-    sender = "topic_"
-    deliver = "todb_deliver_info_msgid_forchannel_"
-    submitresp = "todb_task_send_msgid_forchannel_"
-    mosms = "tomosms_msgid_forchannel_"
-    deliversend = "touser_deliver_info_msgid_forchannel_"
-    delivermo = "touser_delivermo_info_msgid_forchannel_"
+    submit = "nsq.sms_push.submit."
+    deliver = "nsq.sms_push.deliver."
+    submit_resp = "nsq.sms_push.submit_resp."
+    deliver_mo = "nsq.sms_push.deliver_mo."
+    deliver_send = "nsq.sms_gateway.deliver."
+    deliver_mo_send = "nsq.sms_gateway.deliver_mo."
 
 [logconf]
     consoleloggingenabled = true
