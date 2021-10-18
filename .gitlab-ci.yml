@@ -26,6 +26,7 @@ before_script:
   - mkdir $GOPATH/src/$REPO_NAME/etc
   - mkdir /tmp/$DEP_PROJ_NAME
   - git clone http://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.fulongzy.com/backend/$DEP_PROJ_NAME.git /tmp/$DEP_PROJ_NAME
+  - cd /tmp/$DEP_PROJ_NAME; if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;git pull; else git checkout master; git pull; fi
   - ln -svf /tmp/$DEP_PROJ_NAME $CI_PROJECT_DIR/../$DEP_PROJ_NAME
   - ln -svf /tmp/$DEP_PROJ_NAME $GOPATH/src/$(dirname $REPO_NAME)/$DEP_PROJ_NAME
 
@@ -41,7 +42,7 @@ Make go binary:
   stage: make
   script:
     - go env -w GOPROXY=https://goproxy.cn,direct
-    - if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop; else git checkout master; fi
+    - if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;git pull; else git checkout master; git pull; fi
     - make build
   artifacts:
     paths:
