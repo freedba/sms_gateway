@@ -27,7 +27,7 @@ type SrvConn struct {
 	conn       net.Conn
 	addr       string
 	RemoteAddr string
-	Account    AcountsInfo
+	Account    AccountsInfo
 
 	RunId  string
 	Logger *levellogger.Logger
@@ -241,8 +241,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 		return resp, err
 	}
 
-	var account AcountsInfo
-	account = AcountsInfo{}
+	var account AccountsInfo
+	account = AccountsInfo{}
 	err = json.Unmarshal([]byte(str), &account)
 	if err != nil {
 		logger.Error().Msgf("accounts json.unmarshal error:%v, exit...", err)
@@ -422,7 +422,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		Rate:     s.Account.FlowVelocity, //流速控制
 		Unit:     unit,
 		Duration: 1000000000, //纳秒
-		RunMode:  runmode,
+		RunMode:  runMode,
 		RunId:    runId,
 	}
 	s.FlowVelocity = flowVelocity

@@ -8,9 +8,9 @@ var SignalExit = make(chan struct{})
 var SeqId uint32
 var msgIdChan chan uint64
 
-const runmode = "server"
+const runMode = "server"
 
-type AcountsInfo struct {
+type AccountsInfo struct {
 	NickName        string              `json:"nick_name"`
 	CmppJoinDestId  string              `json:"cmpp_join_dest_id"`
 	CmppDestId      string              `json:"cmpp_dest_id"`
