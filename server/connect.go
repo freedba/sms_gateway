@@ -97,7 +97,7 @@ func Listen() {
 		clientConn, err := ln.Accept()
 		if err != nil {
 			logger.Error().Msgf("error Listen Accept: %v", err.Error())
-			if nerr, ok := err.(net.Error); ok && nerr.Temporary() {
+			if nErr, ok := err.(net.Error); ok && nErr.Temporary() {
 				logger.Error().Msgf("NOTICE: temporary Accept() failure - %s", err)
 				runtime.Gosched()
 				continue
@@ -150,7 +150,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		logger.Error().Msgf("s.rw.ReadPacket error:%v,read len:%d", err)
 		goto EXIT
 	}
-	s.rw.Reset()
+	s.rw.Reset("r")
 
 	h.UnPack(data[:12])
 	if h.CmdId != protocol.CMPP_CONNECT {
@@ -169,7 +169,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		logger.Error().Msgf("resp.IOWrite error: %v", err)
 		goto EXIT
 	}
-	s.rw.Reset()
+	s.rw.Reset("w")
 
 	if resp.Status != 0 {
 		time.Sleep(time.Duration(1) * time.Second)
@@ -271,7 +271,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	reqAuthSrc := req.AuthSrc.Byte()
 	if !bytes.Equal(authSrc, reqAuthSrc) {
 		logger.Error().Msgf("账号(%s) auth failed", sourceAddr.String())
-		logger.Error().Msgf("authsrc: %v, req.Authsrc: %v", authSrc, reqAuthSrc)
+		logger.Error().Msgf("authSrc: %v, req.AuthSrc: %v", authSrc, reqAuthSrc)
 		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
 		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
@@ -364,11 +364,8 @@ func (s *SrvConn) ReadLoop() {
 	runId := s.RunId
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	//s.Wg.Add(2)
 	s.waitGroup.Wrap(func() { s.HandleCommand(ctx) })
 	s.waitGroup.Wrap(func() { s.loopMakeMsgId(ctx) })
-	//go s.HandleCommand(ctx)
-	//go s.loopMakeMsgId(ctx)
 
 	for {
 		data, err := s.rw.ReadPacket()
