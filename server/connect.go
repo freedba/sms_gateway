@@ -122,6 +122,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	var resp *protocol.ConnResp
 	var err error
 	var runId string
+	var data []byte
 
 	qLen := config.GetQlen()
 	if qLen < 16 {
@@ -142,8 +143,9 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	}
 
 	h := &protocol.Header{}
+
 	s.rw.ReadTimeout = 10
-	data, err := s.rw.ReadPacket()
+	data, err = s.rw.ReadPacket()
 	if err != nil {
 		logger.Error().Msgf("s.rw.ReadPacket error:%v,read len:%d", err)
 		goto EXIT
@@ -162,10 +164,12 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		goto EXIT
 	}
 
+	s.rw.WriteTimeout = 10
 	if err = resp.IOWrite(s.rw); err != nil {
 		logger.Error().Msgf("resp.IOWrite error: %v", err)
 		goto EXIT
 	}
+	s.rw.Reset()
 
 	if resp.Status != 0 {
 		time.Sleep(time.Duration(1) * time.Second)
