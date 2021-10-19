@@ -384,32 +384,6 @@ func (s *SrvConn) ReadLoop() {
 				s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
 			}
 			goto EXIT
-			//s.Logger.Error().Msgf("账号(%s) conn read error: %v", runId, err)
-			//if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			//	if atomic.LoadInt32(&s.deliverSenderExit) == 1 {
-			//		s.Logger.Debug().Msgf("账号(%s) deliverSender 协程已退出", runId)
-			//		goto EXIT
-			//	}
-			//	//s.Logger.Debug().Msgf("账号(%s) timeout: %v", chid, err)
-			//	continue
-			//} else if err.Error() == "invalid message length" {
-			//	s.invalidMessageCount++
-			//	if s.invalidMessageCount < 10 {
-			//		s.Logger.Error().Msgf("账号(%s) ReadLoop error: %v, s.invalidMessageCount:%d",
-			//			runId, err, s.invalidMessageCount)
-			//		continue
-			//	}
-			//	s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)
-			//	if err := protocol.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
-			//		s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE IOWrite: %v", runId, err)
-			//	}
-			//	time.Sleep(time.Duration(1) * time.Second)
-			//	s.Logger.Error().Msgf("账号(%s) will exit LoopRead", runId)
-			//	goto EXIT
-			//} else {
-			//	s.Logger.Error().Msgf("账号(%s) s.rw.ReadPacket error: %v", runId, err)
-			//	goto EXIT
-			//}
 		}
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
@@ -434,9 +408,7 @@ func (s *SrvConn) ReadLoop() {
 	}
 EXIT:
 	atomic.StoreInt32(&s.ReadLoopRunning, 0)
-	//s.Wg.Add(1)
 	s.waitGroup.Wrap(func() { s.Cleanup() })
-	//go s.Cleanup()
 	s.Logger.Debug().Msgf("账号(%s) Exiting ReadLoop...", runId)
 }
 
@@ -464,10 +436,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 HandleCommand 协程....", runId)
 			goto EXIT
 		case data := <-s.commandChan:
-			//buf := data[:12]
-			h.UnPack(data[:12])
-			//buf := data[12:]
-			//s.Logger.Debug().Msgf("buf:%v,buf len:%d, header:%v", buf, len(buf),*h)
+			h.UnPack(data[:protocol.HeaderLen])
 			switch h.CmdId {
 			case protocol.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
@@ -491,21 +460,10 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				goto EXIT
 
 			case protocol.CMPP_SUBMIT:
-
-				//p := &protocol.Submit{}
-				//
-				//if err := p.UnPack(buf); err != nil {
-				//	s.Logger.Error().Msgf("账号(%s),data:%v,buf len:%d,seqId:%d", runId, data,len(data),h.SeqId)
-				//}
-				//s.Logger.Debug().Msgf("账号(%s),-----",runId)
-				//s.Wg.Add(1)
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })
-				//go s.handleSubmit(*h, buf)
 
 			case protocol.CMPP_DELIVER_RESP:
-				//s.Wg.Add(1)
 				s.waitGroup.Wrap(func() { s.handleDeliverResp(data) })
-				//go s.handleDeliverResp(*h, buf)
 
 			default:
 				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runId, *h)
@@ -529,8 +487,8 @@ EXIT:
 
 func (s *SrvConn) handleDeliverResp(data []byte) {
 	h := &protocol.Header{}
-	h.UnPack(data[:12])
-	buf := data[12:]
+	h.UnPack(data[:protocol.HeaderLen])
+	buf := data[protocol.HeaderLen:]
 	runId := s.RunId
 	dr := &protocol.DeliverResp{}
 	dr.UnPack(buf)
@@ -549,18 +507,17 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 }
 
 func (s *SrvConn) handleSubmit(data []byte) {
-	h := &protocol.Header{}
-	h.UnPack(data[:12])
-	buf := data[12:]
-	//logger.Debug().Msgf("header:%v, buf len:%d",h, len(buf))
 	var count uint64
 	var err error
+	h := &protocol.Header{}
+	h.UnPack(data[:protocol.HeaderLen])
+	buf := data[protocol.HeaderLen:]
 	runId := s.RunId
 	resp := protocol.NewSubmitResp()
 	p := &protocol.Submit{}
 	resp.MsgId = <-msgIdChan
 	if resp.MsgId == 0 {
-		s.Logger.Error().Msgf("msgid generate error:")
+		s.Logger.Error().Msgf("msgId generate error:")
 		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)
 		if err := protocol.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 			s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE IOWrite: %v", runId, err)
@@ -577,7 +534,6 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	if s.FlowVelocity.OverSpeed {
 		s.Logger.Error().Msgf("账号(%s) s.FlowVelocity.OverSpeed:%v", runId, s.FlowVelocity.OverSpeed)
 		resp.Result = 8
-		//s.FlowVelocity.OverSpeed = false
 	} else if len(buf)+12 != int(h.TotalLen) {
 		s.Logger.Error().Msgf("账号(%s) buf len:%d + 12 != h.TotalLen:%d", runId, len(buf), h.TotalLen)
 		resp.Result = protocol.ErrnoSubmitInvalidMsgLength
@@ -615,7 +571,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		p.MsgId = resp.MsgId
 		timer := time.NewTimer(utils.Timeout)
 		select {
-		case s.SubmitChan <- *p: //理论上不会阻塞，通道数据首先会入nsq,失败后会入mysql
+		case s.SubmitChan <- *p:
 		case t := <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runId, t)
 			s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunId, p)
@@ -727,8 +683,5 @@ func (s *SrvConn) LoopActiveTest() {
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 EXIT:
-	//if atomic.LoadInt32(&s.LoopSendRunning) == 1 {
-	//	utils.ExitSig.LoopSend[chid] <- true
-	//}
 	s.Logger.Debug().Msgf("账号(%s) Exiting LoopActiveTest...", runId)
 }
