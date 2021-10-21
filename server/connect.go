@@ -716,5 +716,6 @@ func (s *SrvConn) LoopActiveTest() {
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 EXIT:
+	s.Close()
 	s.Logger.Debug().Msgf("账号(%s) Exiting LoopActiveTest...", runId)
 }
