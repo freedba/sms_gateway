@@ -9,7 +9,7 @@ import (
 
 func signalHandle(sess *Sessions) {
 
-	exitChan := make(chan os.Signal)
+	exitChan := make(chan os.Signal, 1)
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGKILL)
 	sig := <-exitChan
 	logger.Debug().Msgf("接收到退出信号：%v，关闭所有账号连接", sig)
