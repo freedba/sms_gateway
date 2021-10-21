@@ -33,10 +33,10 @@ fakegateway = 0 #模拟网关
 [topicprefix]
     submit = "nsq.sms_push.submit."
     deliver = "nsq.sms_push.deliver."
-    submit_resp = "nsq.sms_push.submit_resp."
-    deliver_mo = "nsq.sms_push.deliver_mo."
-    deliver_send = "nsq.sms_gateway.deliver."
-    deliver_mo_send = "nsq.sms_gateway.deliver_mo."
+    submitresp = "nsq.sms_push.submit_resp."
+    delivermo = "nsq.sms_push.deliver_mo."
+    deliversend = "nsq.sms_gateway.deliver."
+    delivermosend = "nsq.sms_gateway.deliver_mo."
 
 [logconf]
     consoleloggingenabled = true

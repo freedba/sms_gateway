@@ -81,7 +81,7 @@ func Listen() {
 	logger.Debug().Msgf("start Server at %s", addr)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		logger.Error().Msgf("error listening: ", err.Error())
+		logger.Error().Msgf("error listening: %v", err.Error())
 		return
 	}
 	defer func(ln net.Listener) {
@@ -153,7 +153,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.rw.ReadTimeout = 10
 	data, err = s.rw.ReadPacket()
 	if err != nil {
-		logger.Error().Msgf("s.rw.ReadPacket error:%v,read len:%d", err)
+		logger.Error().Msgf("s.rw.ReadPacket error:%v,read len:%d", err, len(data))
 		goto EXIT
 	}
 	s.rw.Reset("r")
