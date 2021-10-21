@@ -12,7 +12,6 @@ variables:
   REPO_NAME: git@gitlab.fulongzy.com:backend/${PROJ_NAME}.git
   DEP_PROJ_NAME: sms_lib
 
-
 # The problem is that to be able to use go get, one needs to put
 # the repository in the $GOPATH. So for example if your gitlab domain
 # is gitlab.com, and that your repository is namespace/project, and

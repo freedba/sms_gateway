@@ -595,7 +595,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	if resp.Result == 0 {
 		p.SeqId = h.SeqId
 		p.MsgId = resp.MsgId
-		if FakeGateway == 1 {
+		if FakeGateway == 1 { //模拟网关服务器
 			go s.makeDeliverMsg(p.MsgId)
 		} else {
 			timer := time.NewTimer(utils.Timeout * 10)
