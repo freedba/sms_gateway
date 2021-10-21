@@ -11,6 +11,7 @@ qlen = 20
 listen = "0.0.0.0:7890"
 threshold = 80
 maxchannels = 3
+fakegateway = 0 #模拟网关
 
 [hbtime]
     timeout = 60

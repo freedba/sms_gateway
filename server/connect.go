@@ -37,24 +37,29 @@ type SrvConn struct {
 	deliverSenderExit     int32
 	CloseFlag             int32
 	exitSignalChan        chan struct{}
+	terminateSent         bool
 
-	MsgId         uint64
-	SeqId         uint32
-	LastSeqId     uint32
-	longSms       map[uint8]map[uint8][]byte
-	deliverMsgMap cmap.ConcurrentMap
+	MsgId                 uint64
+	SeqId                 uint32
+	LastSeqId             uint32
+	longSms               map[uint8]map[uint8][]byte
+	deliverMsgMap         cmap.ConcurrentMap
+	deliverResendCountMap cmap.ConcurrentMap
 
 	hsmChan         chan HttpSubmitMessageInfo
 	mapKeyInChan    chan string
 	SubmitChan      chan protocol.Submit
 	deliverRespChan chan protocol.DeliverResp
 	commandChan     chan []byte
+	deliverFakeChan chan []byte
 
 	count               uint64
 	SubmitToQueueCount  int
 	DeliverSendCount    int
 	FlowVelocity        *utils.FlowVelocity
 	invalidMessageCount uint32
+	submitTaskCount     int64
+	deliverTaskCount    int64
 
 	rw        *protocol.PacketRW
 	waitGroup utils.WaitGroupWrapper
@@ -139,6 +144,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		exitHandleCommandChan: make(chan struct{}),
 		exitSignalChan:        make(chan struct{}),
 		deliverMsgMap:         cmap.New(),
+		deliverResendCountMap: cmap.New(),
 		rw:                    protocol.NewPacketRW(conn),
 	}
 
@@ -189,7 +195,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.waitGroup.Wrap(func() { s.ReadLoop() })
 	time.Sleep(time.Duration(10) * time.Millisecond)
 	s.waitGroup.Wrap(func() { SubmitMsgIdToQueue(s) })
-	s.waitGroup.Wrap(func() { DeliverSend(s) })
+	s.waitGroup.Wrap(func() { DeliverPush(s) })
 	s.waitGroup.Wrap(func() { s.LoopActiveTest() })
 	s.waitGroup.Wait()
 
@@ -338,7 +344,7 @@ func (s *SrvConn) Cleanup() {
 			}
 		}
 	}
-	s.Logger.Debug().Msgf("帐号(%s) 完成缓存数据清理，Exiting Cleanup...", runId)
+	s.Logger.Debug().Msgf("帐号(%s) 缓存数据已清理，Exiting Cleanup...", runId)
 }
 
 func (s *SrvConn) loopMakeMsgId(ctx context.Context) {
@@ -376,7 +382,7 @@ func (s *SrvConn) ReadLoop() {
 					runId, err)
 				continue
 			}
-			if err == io.EOF && s.IsClosing() {
+			if err == io.EOF {
 				s.Logger.Error().Msgf("通道(%s) IO error - %s, s.IsClosing:%v", runId, err, s.IsClosing())
 				goto EXIT
 			}
@@ -388,13 +394,17 @@ func (s *SrvConn) ReadLoop() {
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
 		case <-s.exitSignalChan:
-			logger.Debug().Msgf("账号(%s) 收到s.exitSignalChan信号，退出ReadLoop", runId)
+			logger.Debug().Msgf("账号(%s) 收到s.exitSignalChan信号，即将退出ReadLoop", runId)
 			_ = t.IOWrite(s.rw)
-			goto EXIT
-		case <-utils.ExitSig.DeliverySender[s.RunId]:
+			s.terminateSent = true
+			time.Sleep(time.Duration(1) * time.Second)
+			continue
+		case <-utils.ExitSig.DeliverySender[runId]:
 			logger.Debug().Msgf("账号(%s) 收到utils.ExitSig.DeliverySender信号，退出ReadLoop", runId)
 			_ = t.IOWrite(s.rw)
-			goto EXIT
+			s.terminateSent = true
+			time.Sleep(time.Duration(1) * time.Second)
+			continue
 		case <-s.exitHandleCommandChan: // 由HandleCommand close s.exitHandleCommandChan，
 			logger.Debug().Msgf("账号(%s) 收到s.exitHandleCommandChan信号，退出ReadLoop", runId)
 			goto EXIT
@@ -405,9 +415,16 @@ func (s *SrvConn) ReadLoop() {
 				runId, len(s.commandChan))
 			logger.Debug().Msgf("账号(%s) record Submit: %v ", runId, data)
 		}
+		if s.terminateSent {
+			s.Logger.Debug().Msgf("账号(%s) 已发送过拆除连接命令，退出ReadLoop", runId)
+			goto EXIT
+		}
 	}
 EXIT:
 	atomic.StoreInt32(&s.ReadLoopRunning, 0)
+	if !s.IsClosing() {
+		s.Close()
+	}
 	s.waitGroup.Wrap(func() { s.Cleanup() })
 	s.Logger.Debug().Msgf("账号(%s) Exiting ReadLoop...", runId)
 }
@@ -426,15 +443,12 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		RunId:    runId,
 	}
 	s.FlowVelocity = flowVelocity
-	t := protocol.NewTerminate()
+	//t := protocol.NewTerminate()
 	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runId)
 	h := &protocol.Header{}
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
-		case <-ctx.Done():
-			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 HandleCommand 协程....", runId)
-			goto EXIT
 		case data := <-s.commandChan:
 			h.UnPack(data[:protocol.HeaderLen])
 			switch h.CmdId {
@@ -452,7 +466,6 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				if err := protocol.NewTerminateResp().IOWrite(s.rw); err != nil { //拆除连接
 					s.Logger.Error().Msgf("通道(%s) CMPP_TERMINATE_RESP IOWrite: %v", runId, err)
 				}
-				time.Sleep(time.Duration(1) * time.Second)
 				goto EXIT
 
 			case protocol.CMPP_TERMINATE_RESP:
@@ -460,28 +473,40 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				goto EXIT
 
 			case protocol.CMPP_SUBMIT:
+				atomic.AddInt64(&s.submitTaskCount, 1)
+				//if int(count) > config.GetQlen() {
+				//	s.Logger.Warn().Msgf("通道(%s) 当前submit任务数:%d",runId,count)
+				//}
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })
 
 			case protocol.CMPP_DELIVER_RESP:
+				atomic.AddInt64(&s.deliverTaskCount, 1)
+				//if int(count) > config.GetQlen() {
+				//	s.Logger.Warn().Msgf("通道(%s) 当前deliver任务数:%d",runId,count)
+				//}
 				s.waitGroup.Wrap(func() { s.handleDeliverResp(data) })
 
 			default:
 				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runId, *h)
 				// time.Sleep(time.Duration(1000) * time.Nanosecond)
 			}
-		case <-s.exitSignalChan:
-			logger.Debug().Msgf("账号(%s) 收到s.exitSignalChan信号，退出ReadLoop", runId)
-			_ = t.IOWrite(s.rw)
-			goto EXIT
 		case t := <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at: %v", runId, t)
+			select {
+			case <-ctx.Done():
+				s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 HandleCommand 协程....", runId)
+				goto EXIT
+			default:
+			}
 		}
 	}
 EXIT:
 	if atomic.LoadInt32(&s.ReadLoopRunning) == 1 {
 		close(s.exitHandleCommandChan)
 	}
-	s.Close() //关闭网络读写
+	if !s.IsClosing() {
+		s.Close() //关闭网络读写
+	}
 	s.Logger.Debug().Msgf("账号(%s) Exiting HandleCommand...", runId)
 }
 
@@ -504,6 +529,7 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	case t := <-timer.C:
 		s.Logger.Debug().Msgf("账号(%s) d写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
 	}
+	atomic.AddInt64(&s.deliverTaskCount, -1)
 }
 
 func (s *SrvConn) handleSubmit(data []byte) {
@@ -561,20 +587,24 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 
 	if count%uint64(utils.PeekInterval) == 0 {
-		s.Logger.Debug().Msgf("账号(%s) 收到消息提交(CMPP_SUBMIT), count: %d,resp.SeqId:%d,"+
-			"resp.MsgId:%d", runId, s.count, resp.SeqId, resp.MsgId)
+		s.Logger.Debug().Msgf("账号(%s) 收到消息提交(CMPP_SUBMIT), count: %d,resp.SeqId:%d,resp.MsgId:%d,"+
+			"s.submitTaskCount:%d", runId, s.count, resp.SeqId, resp.MsgId, atomic.LoadInt64(&s.submitTaskCount))
 	}
 
 	s.LastSeqId = h.SeqId
 	if resp.Result == 0 {
 		p.SeqId = h.SeqId
 		p.MsgId = resp.MsgId
-		timer := time.NewTimer(utils.Timeout)
-		select {
-		case s.SubmitChan <- *p:
-		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runId, t)
-			s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunId, p)
+		if FakeGateway == 1 {
+			go s.makeDeliverMsg(p.MsgId)
+		} else {
+			timer := time.NewTimer(utils.Timeout * 10)
+			select {
+			case s.SubmitChan <- *p:
+			case t := <-timer.C:
+				s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runId, t)
+				s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunId, p)
+			}
 		}
 	} else {
 		if resp.Result == protocol.ErrnoSubmitInvalidMsgLength ||
@@ -587,12 +617,15 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			time.Sleep(time.Duration(1) * time.Second)
 		}
 	}
+	atomic.AddInt64(&s.submitTaskCount, -1)
 	return
 EXIT:
 	if !utils.ChIsClosed(s.exitHandleCommandChan) {
 		close(s.exitHandleCommandChan)
 	}
+	atomic.AddInt64(&s.submitTaskCount, -1)
 	s.Logger.Error().Msgf("账号(%s) close(s.exitHandleCommandChan), will exit HandleCommand", runId)
+
 }
 
 func (s *SrvConn) LoopActiveTest() {

@@ -54,6 +54,10 @@ func LoopSrvMain() {
 	models.InitDB()
 	models.InitRedis()
 	server.InitNodeId()
+	server.FakeGateway = config.GetFakeGateway()
+	if server.FakeGateway == 1 {
+		logger.Debug().Msgf("当前运行模拟网关模式")
+	}
 	levellogger.Llogger = levellogger.NewLogger("")
 	server.NewSnowflakeNode()
 	server.SeqId = server.InitSeqId()

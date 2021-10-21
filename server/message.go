@@ -51,27 +51,6 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 					}
 					flag = true
 				}
-				//logger.Debug().Msgf("long submit: %s", string(utils.Ucs2ToUtf8(content)))
-				//if pkNumber == pkTotal { // 长短信结束
-				//	s.longSms[rand][pkNumber] = p.MsgContent[6:]
-				//	for i := uint8(1); i <= pkTotal; i++ {
-				//		content = append(content, s.longSms[rand][i]...)
-				//	}
-				//	flag = true
-				//	//logger.Debug().Msgf("long submit: %s", string(utils.Ucs2ToUtf8(content)))
-				//} else {
-				//	if pkNumber == 1 { //长短信开始
-				//		s.longSms = make(map[uint8]map[uint8][]byte)
-				//		s.longSms[rand] = make(map[uint8][]byte)
-				//	} else {
-				//		// 非顺序提交
-				//		if _, ok := s.longSms[rand][1]; !ok {
-				//			s.longSms = make(map[uint8]map[uint8][]byte)
-				//			s.longSms[rand] = make(map[uint8][]byte)
-				//		}
-				//	}
-				//	s.longSms[rand][pkNumber] = p.MsgContent[6:]
-				//}
 			} else if p.TPUdhi == 0 { //短短信
 				content = p.MsgContent
 				flag = true
@@ -330,7 +309,7 @@ type deliverSender struct {
 	mutex      *sync.Mutex
 }
 
-func DeliverSend(s *SrvConn) {
+func DeliverPush(s *SrvConn) {
 	cfg := config.GetTopicPrefix()
 	chid := s.Account.Id
 	user := s.Account.NickName
@@ -367,7 +346,7 @@ func DeliverSend(s *SrvConn) {
 		moNmc:      moNmc,
 	}
 
-	snd.deliverMsg()
+	snd.consumeDeliverMsg()
 	deliverNmc.Consumer.Stop()
 	moNmc.Consumer.Stop()
 EXIT:
@@ -378,72 +357,48 @@ EXIT:
 	s.Logger.Debug().Msgf("账号(%s) Exiting DeliverSend...", s.RunId)
 }
 
-func (snd *deliverSender) deliverRespMsg(ctx context.Context) {
+func (snd *deliverSender) consumeDeliverMsg() {
 	s := snd.s
-	runId := s.RunId
-	timer := time.NewTimer(utils.Timeout)
-	for {
-		select {
-		case <-ctx.Done():
-			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 deliverRespMsg 协程....", runId)
-			return
-		case resp := <-s.deliverRespChan:
-			if resp.Result != 0 {
-				s.Logger.Error().Msgf("账号(%s) deliver Resp.Result(%d) != 0,resp: %v", s.RunId, resp.Result, resp)
-				//fix me
-			} else {
-				select {
-				case <-s.mapKeyInChan:
-					seqId := resp.SeqId
-					mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(seqId))
-					if _, ok := s.deliverMsgMap.Get(mapKey); ok {
-						s.deliverMsgMap.Remove(mapKey)
-					}
-				default:
-				}
-			}
-		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) s.deliverRespChan Tick at: %v", s.RunId, t)
-		}
-	}
-}
-
-func (snd *deliverSender) deliverMsg() {
-	s := snd.s
-	user := s.Account.NickName
 	var err error
 	timer := time.NewTimer(utils.Timeout)
 	deliverNmc := snd.deliverNmc
 	moNmc := snd.moNmc
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.waitGroup.Wrap(func() { snd.deliverRespMsg(ctx) })
+	s.waitGroup.Wrap(func() { snd.handleDeliverResp(ctx) })
 
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
-		if s.IsClosing() {
-			s.Logger.Debug().Msgf("账号(%s) connection closed", user)
+		if s.IsClosing() || s.ReadLoopRunning == 0 {
+			s.Logger.Debug().Msgf("账号(%s) s.IsClosing:%v,s.ReadLoopRunning:%d",
+				s.RunId, s.IsClosing(), s.ReadLoopRunning)
 			goto EXIT
 		}
 		//logger.Debug().Msgf("deliverNmc.MsgChan:%d,moNmc.MsgChan:%d",len(deliverNmc.MsgChan),len(moNmc.MsgChan))
 		select {
+		case <-s.exitSignalChan:
+			s.Logger.Debug().Msgf("账号(%s) 收到s.exitSignalChan信号,退出consumeDeliverMsg", s.RunId)
+			goto EXIT
 		case deliverMsg := <-deliverNmc.MsgChan:
 			err = snd.msgWrite(1, deliverMsg.Body)
 			if err != nil {
-				// fix me
 				s.Logger.Error().Msgf("账号(%s) deliverMsg return error: %v", s.RunId, err)
 				goto EXIT
 			}
-
 		case moMsg := <-moNmc.MsgChan:
 			err = snd.msgWrite(0, moMsg.Body)
 			if err != nil {
-				// fix me
 				s.Logger.Error().Msgf("账号(%s) moMsg return error: %v", s.RunId, err)
 				goto EXIT
 			}
+		case msg := <-s.deliverFakeChan:
+			err = snd.msgWrite(1, msg)
+			if err != nil {
+				s.Logger.Error().Msgf("账号(%s) msg return error: %v", s.RunId, err)
+				goto EXIT
+			}
 		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) deliverMsg Tick at: %v", s.RunId, t)
+			s.Logger.Debug().Msgf("账号(%s) consumeDeliverMsg Tick at: %v", s.RunId, t)
 		}
 	}
 EXIT:
@@ -453,15 +408,14 @@ EXIT:
 	return
 }
 
-func (snd *deliverSender) msgWrite(RegisterDelivery uint8, msg []byte) error {
+func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 	s := snd.s
 	dm := &protocol.DeliverMsg{}
 	var msgId uint64
 	var destId, srcTerminalId *protocol.OctetString
 	var content []byte
-	if RegisterDelivery == 0 { //上行
+	if registerDelivery == 0 { //上行
 		p := &MoMsgInfo{}
-		//p := snd.moMsgInfoPool.Get().(*MoMsgInfo)
 		err := json.Unmarshal(msg, p)
 		if err != nil {
 			s.Logger.Error().Msgf("账号(%s) json.unmarshal error:%v", s.RunId, err)
@@ -469,13 +423,13 @@ func (snd *deliverSender) msgWrite(RegisterDelivery uint8, msg []byte) error {
 		}
 		msgId = generateMsgID()
 		if msgId == 0 {
-			s.Logger.Error().Msgf("账号(%s) msgid generate error:", s.RunId)
-			return errors.New("msgid generate error")
+			s.Logger.Error().Msgf("账号(%s) msgId generate error:", s.RunId)
+			return errors.New("msgId generate error")
 		}
 		content = utils.Utf8ToUcs2([]byte(p.MessageInfo))
 		destId = &protocol.OctetString{Data: []byte(s.Account.CmppDestId + p.DevelopNo), FixedLen: 21}
 		srcTerminalId = &protocol.OctetString{Data: []byte(p.Mobile), FixedLen: 21}
-	} else if RegisterDelivery == 1 { // 回执状态报告
+	} else if registerDelivery == 1 { // 回执状态报告
 		dmi := &DeliverMsgInfo{}
 		//dmi := snd.deliverMsgInfoPool.Get().(*DeliverMsgInfo)
 		err := json.Unmarshal(msg, dmi)
@@ -498,7 +452,7 @@ func (snd *deliverSender) msgWrite(RegisterDelivery uint8, msg []byte) error {
 		content = dm.Serialize()
 		//snd.moMsgInfoPool.Put(dmi)
 	} else {
-		s.Logger.Debug().Msgf("RegisterDelivery error: %d", RegisterDelivery)
+		s.Logger.Debug().Msgf("registerDelivery error: %d", registerDelivery)
 		return nil
 	}
 	d := &protocol.Deliver{}
@@ -509,7 +463,7 @@ func (snd *deliverSender) msgWrite(RegisterDelivery uint8, msg []byte) error {
 	d.TPUdhi = 0
 	d.MsgFmt = 8
 	d.SrcTerminalId = srcTerminalId
-	d.RegisteredDelivery = RegisterDelivery
+	d.RegisteredDelivery = registerDelivery
 	tLen := len(content)
 	d.MsgLength = uint8(tLen)
 	d.MsgContent = content
@@ -520,7 +474,7 @@ func (snd *deliverSender) msgWrite(RegisterDelivery uint8, msg []byte) error {
 	d.TotalLen = 12 + 8 + 21 + 10 + 1 + 1 + 1 + 21 + 1 + 1 + uint32(tLen) + 8
 
 	mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(newSeqId))
-	s.mapKeyInChan <- mapKey // 回执发送缓冲控制
+	s.mapKeyInChan <- mapKey // 仅用作回执发送缓冲控制
 	s.deliverMsgMap.Set(mapKey, *d)
 	if err := d.IOWrite(s.rw); err != nil {
 		s.Logger.Error().Msgf("账号(%s) send deliver msg error:%v", s.RunId, err)
@@ -529,7 +483,67 @@ func (snd *deliverSender) msgWrite(RegisterDelivery uint8, msg []byte) error {
 	s.DeliverSendCount++
 	if s.DeliverSendCount%utils.PeekInterval == 0 {
 		s.Logger.Debug().Msgf("账号(%s) 推送回执，SeqId: %d, s.DeliverSendCount: %d, s.deliverMsgMap.Count:%d,"+
-			" RegisterDelivery: %d", s.RunId, d.SeqId, s.DeliverSendCount, s.deliverMsgMap.Count(), RegisterDelivery)
+			" registerDelivery: %d", s.RunId, d.SeqId, s.DeliverSendCount, s.deliverMsgMap.Count(), registerDelivery)
 	}
 	return nil
+}
+
+func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
+	s := snd.s
+	runId := s.RunId
+	timer := time.NewTimer(utils.Timeout)
+	for {
+		select {
+		case <-ctx.Done():
+			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 deliverRespMsg 协程....", runId)
+			return
+		case resp := <-s.deliverRespChan:
+			seqId := resp.SeqId
+			mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(seqId))
+			if resp.Result != 0 {
+				s.Logger.Error().Msgf("账号(%s) deliver Resp.Result(%d) != 0,resp: %v", s.RunId, resp.Result, resp)
+				var count int
+				var d protocol.Deliver
+				if tmp, ok := s.deliverMsgMap.Get(mapKey); ok {
+					d = tmp.(protocol.Deliver)
+					if tmp, ok := s.deliverResendCountMap.Get(mapKey); ok {
+						count = tmp.(int)
+						count++
+					} else {
+						count = 1
+					}
+					if count < 3 {
+						s.deliverResendCountMap.Set(mapKey, count)
+						if err := d.IOWrite(s.rw); err != nil {
+							s.Logger.Error().Msgf("账号(%s) resend deliver msg error:%v,count:%d",
+								s.RunId, err, count)
+							return
+						}
+						s.Logger.Warn().Msgf("账号(%s) resend deliver msg, mapInKey:%s,count:%d",
+							s.RunId, mapKey, count)
+					} else {
+						select {
+						case <-s.mapKeyInChan:
+						default:
+						}
+						s.deliverMsgMap.Remove(mapKey)
+						s.deliverResendCountMap.Remove(mapKey)
+					}
+				}
+			} else {
+				select {
+				case <-s.mapKeyInChan:
+					if _, ok := s.deliverMsgMap.Get(mapKey); ok {
+						s.deliverMsgMap.Remove(mapKey)
+					}
+					if _, ok := s.deliverResendCountMap.Get(mapKey); ok {
+						s.deliverResendCountMap.Remove(mapKey)
+					}
+				default:
+				}
+			}
+		case t := <-timer.C:
+			s.Logger.Debug().Msgf("账号(%s) s.deliverRespChan Tick at: %v", s.RunId, t)
+		}
+	}
 }

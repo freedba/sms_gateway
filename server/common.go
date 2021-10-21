@@ -7,6 +7,7 @@ var snowNode *snowflake.Node
 var SignalExit = make(chan struct{})
 var SeqId uint32
 var msgIdChan chan uint64
+var FakeGateway int
 
 const runMode = "server"
 
