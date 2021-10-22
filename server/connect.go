@@ -473,10 +473,11 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				goto EXIT
 
 			case protocol.CMPP_SUBMIT:
-				atomic.AddInt64(&s.submitTaskCount, 1)
-				//if int(count) > config.GetQlen() {
-				//	s.Logger.Warn().Msgf("通道(%s) 当前submit任务数:%d",runId,count)
-				//}
+				count := atomic.AddInt64(&s.submitTaskCount, 1)
+				if int(count) > 50 {
+					s.Logger.Warn().Msgf("通道(%s) 当前submit任务数:%d, sleep 100ms", runId, count)
+					time.Sleep(time.Duration(100) * time.Millisecond)
+				}
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })
 
 			case protocol.CMPP_DELIVER_RESP:

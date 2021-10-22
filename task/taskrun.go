@@ -26,7 +26,7 @@ type ChannelStat struct {
 func ServerSupervisory() {
 	logger.Debug().Msgf("启动 ServerSupervisory 协程...")
 	//var err error
-	timeout := time.Duration(30) * time.Second
+	timeout := utils.Timeout * 6
 	timer := time.NewTimer(timeout)
 	threshold := config.GetThreshold()
 	for {
