@@ -70,9 +70,31 @@ type Sessions struct {
 	Users      map[string]int
 	Conns      map[*SrvConn]struct{}
 	RemoteAddr string
+	mLock      *sync.Mutex
 }
 
-func Listen() {
+func (sess *Sessions) Add(s *SrvConn) {
+	sess.mLock.Lock()
+	sess.Users[s.Account.NickName]++
+	sess.Conns[s] = struct{}{}
+	sess.mLock.Unlock()
+}
+
+func (sess *Sessions) Done(s *SrvConn) {
+	sess.mLock.Lock()
+	if sess.Users[s.Account.NickName] > 0 {
+		sess.Users[s.Account.NickName]--
+	}
+	if sess.Users[s.Account.NickName] == 0 {
+		delete(sess.Users, s.Account.NickName)
+	}
+	delete(sess.Conns, s)
+	sess.mLock.Unlock()
+}
+
+func Listen(sess *Sessions) {
+	var mLock = &sync.Mutex{}
+	sess.mLock = mLock
 
 	addr := config.GetListen()
 	if addr == "" {
@@ -90,12 +112,7 @@ func Listen() {
 			logger.Error().Msgf("ln.Close error: %v", err)
 		}
 	}(ln)
-
-	sess := &Sessions{
-		Users: make(map[string]int),
-		ln:    ln,
-		Conns: make(map[*SrvConn]struct{}),
-	}
+	sess.ln = ln
 	go signalHandle(sess)
 
 	for {
@@ -182,10 +199,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		goto EXIT
 	}
 
-	mLock.Lock()
-	sess.Users[s.Account.NickName]++
-	sess.Conns[s] = struct{}{}
-	mLock.Unlock()
+	sess.Add(s)
 	runId = s.Account.NickName + ":" + strconv.Itoa(sess.Users[s.Account.NickName])
 	s.Logger = levellogger.NewLogger(runId)
 	s.RunId = runId
@@ -201,15 +215,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 
 EXIT:
 	s.Close()
-	mLock.Lock()
-	if sess.Users[s.Account.NickName] > 0 {
-		sess.Users[s.Account.NickName]--
-	}
-	if sess.Users[s.Account.NickName] == 0 {
-		delete(sess.Users, s.Account.NickName)
-	}
-	delete(sess.Conns, s)
-	mLock.Unlock()
+	sess.Done(s)
 	logger.Debug().Msgf("socket %v, Exiting HandleNewConn...", s.conn)
 }
 

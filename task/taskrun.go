@@ -14,16 +14,16 @@ import (
 //var mLock = sync.Mutex{}
 var signalExit chan struct{}
 
-type ChannelStat struct {
-	conns map[int]int
-	//wg          *sync.WaitGroup
-	waitGroup   utils.WaitGroupWrapper
-	accountsKey string
-	testId      int
-	exclusiveId int //0:共享通道，
-}
+//type ChannelStat struct {
+//	conns map[int]int
+//	//wg          *sync.WaitGroup
+//	waitGroup   utils.WaitGroupWrapper
+//	accountsKey string
+//	testId      int
+//	exclusiveId int //0:共享通道，
+//}
 
-func ServerSupervisory() {
+func ServerSupervise(sess *server.Sessions) {
 	logger.Debug().Msgf("启动 ServerSupervisory 协程...")
 	//var err error
 	timeout := utils.Timeout * 6
@@ -39,6 +39,7 @@ func ServerSupervisory() {
 		if utils.GetCpuPercent() > threshold {
 			logger.Warn().Msgf("当前节点cpu使用率已超%2.f%%,负载过高", threshold)
 		}
+
 		select {
 		case <-server.SignalExit:
 			logger.Debug().Msgf("退出 ServerSupervisory 协程...")
@@ -49,7 +50,7 @@ func ServerSupervisory() {
 }
 
 func LoopSrvMain() {
-	//var wg sync.WaitGroup
+
 	var err error
 	models.InitDB()
 	models.InitRedis()
@@ -63,16 +64,20 @@ func LoopSrvMain() {
 	server.SeqId = server.InitSeqId()
 
 	var topics []string
-	//cfg := config.GetTopicPrefix()
-	//NewProducer topic 初始化
+
 	models.Prn, err = models.NewTopicPubMgr(topics)
 	if err != nil {
 		logger.Error().Msgf("Producer NewProducer error:%v", err)
 		return
 	}
-	go ServerSupervisory()
+	sess := &server.Sessions{
+		Users: make(map[string]int),
+		Conns: make(map[*server.SrvConn]struct{}),
+	}
 
-	server.Listen()
+	go ServerSupervise(sess)
+
+	server.Listen(sess)
 
 	logger.Debug().Msgf("退出网关主程序")
 	os.Exit(0)
