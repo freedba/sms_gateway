@@ -397,8 +397,8 @@ func (snd *deliverSender) consumeDeliverMsg() {
 				s.Logger.Error().Msgf("账号(%s) msg return error: %v", s.RunId, err)
 				goto EXIT
 			}
-		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) consumeDeliverMsg Tick at: %v", s.RunId, t)
+		case <-timer.C:
+			//s.Logger.Debug().Msgf("账号(%s) consumeDeliverMsg Tick at: %v", s.RunId, t)
 		}
 	}
 EXIT:
@@ -542,8 +542,8 @@ func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
 				default:
 				}
 			}
-		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) s.deliverRespChan Tick at: %v", s.RunId, t)
+		case <-timer.C:
+			//s.Logger.Debug().Msgf("账号(%s) s.deliverRespChan Tick at: %v", s.RunId, t)
 		}
 	}
 }
