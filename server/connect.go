@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/chenhg5/collection"
 	cmap "github.com/orcaman/concurrent-map"
 	"io"
@@ -21,8 +22,6 @@ import (
 	"time"
 )
 
-var mLock = sync.Mutex{}
-
 type SrvConn struct {
 	conn       net.Conn
 	addr       string
@@ -36,7 +35,6 @@ type SrvConn struct {
 	ReadLoopRunning       int32
 	deliverSenderExit     int32
 	CloseFlag             int32
-	exitSignalChan        chan struct{}
 	terminateSent         bool
 
 	MsgId                 uint64
@@ -67,29 +65,25 @@ type SrvConn struct {
 
 type Sessions struct {
 	ln         net.Listener
-	Users      map[string]int
-	Conns      map[*SrvConn]struct{}
+	Users      map[string][]string
 	RemoteAddr string
 	mLock      *sync.Mutex
 }
 
-func (sess *Sessions) Add(s *SrvConn) {
+func (sess *Sessions) Add(name string, strPoint string) {
 	sess.mLock.Lock()
-	sess.Users[s.Account.NickName]++
-	sess.Conns[s] = struct{}{}
-	sess.mLock.Unlock()
+	defer sess.mLock.Unlock()
+	sess.Users[name] = append(sess.Users[name], strPoint)
 }
 
-func (sess *Sessions) Done(s *SrvConn) {
+func (sess *Sessions) Done(name string, strPoint string) {
 	sess.mLock.Lock()
-	if sess.Users[s.Account.NickName] > 0 {
-		sess.Users[s.Account.NickName]--
+	defer sess.mLock.Unlock()
+	s := sess.Users[name]
+	sess.Users[name] = utils.SliceRemove(s, strPoint)
+	if len(sess.Users[name]) == 0 {
+		delete(sess.Users, name)
 	}
-	if sess.Users[s.Account.NickName] == 0 {
-		delete(sess.Users, s.Account.NickName)
-	}
-	delete(sess.Conns, s)
-	sess.mLock.Unlock()
 }
 
 func Listen(sess *Sessions) {
@@ -145,6 +139,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	var err error
 	var runId string
 	var data []byte
+	var strPoint string
 
 	qLen := config.GetQlen()
 	if qLen < 16 {
@@ -159,7 +154,6 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		deliverRespChan:       make(chan protocol.DeliverResp, qLen),
 		mapKeyInChan:          make(chan string, qLen),
 		exitHandleCommandChan: make(chan struct{}),
-		exitSignalChan:        make(chan struct{}),
 		deliverMsgMap:         cmap.New(),
 		deliverResendCountMap: cmap.New(),
 		rw:                    protocol.NewPacketRW(conn),
@@ -199,8 +193,9 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		goto EXIT
 	}
 
-	sess.Add(s)
-	runId = s.Account.NickName + ":" + strconv.Itoa(sess.Users[s.Account.NickName])
+	strPoint = fmt.Sprintf("%p", s.conn)
+	sess.Add(s.Account.NickName, strPoint)
+	runId = s.Account.NickName + ":" + strPoint
 	s.Logger = levellogger.NewLogger(runId)
 	s.RunId = runId
 	s.rw.RunId = runId
@@ -215,7 +210,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 
 EXIT:
 	s.Close()
-	sess.Done(s)
+	sess.Done(s.Account.NickName, strPoint)
 	logger.Debug().Msgf("socket %v, Exiting HandleNewConn...", s.conn)
 }
 
@@ -239,7 +234,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	}
 
 	isLogin, ok := sess.Users[sourceAddr.String()]
-	if ok && isLogin > 0 {
+	if ok && len(isLogin) > 0 {
 		logger.Error().Msgf("账号(%s) 已登录过", sourceAddr.String())
 		//return utils.Errs[utils.ErrNoConnAuthFailed]
 	}
@@ -336,7 +331,6 @@ func (s *SrvConn) Cleanup() {
 
 	for {
 		t1 := len(s.mapKeyInChan)
-		//logger.Debug().Msgf("t1: %d, t2: %d, t3:%d",t1,t2,t3)
 		if t1 == 0 {
 			break
 		} else {
@@ -399,8 +393,8 @@ func (s *SrvConn) ReadLoop() {
 		}
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
-		case <-s.exitSignalChan:
-			logger.Debug().Msgf("账号(%s) 收到s.exitSignalChan信号，即将退出ReadLoop", runId)
+		case <-utils.ExitSig.LoopRead[runId]:
+			logger.Debug().Msgf("账号(%s) 收到utils.ExitSig.LoopRead信号，即将退出ReadLoop", runId)
 			_ = t.IOWrite(s.rw)
 			s.terminateSent = true
 			time.Sleep(time.Duration(1) * time.Second)
@@ -449,7 +443,6 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		RunId:    runId,
 	}
 	s.FlowVelocity = flowVelocity
-	//t := protocol.NewTerminate()
 	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runId)
 	h := &protocol.Header{}
 	for {
@@ -481,7 +474,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			case protocol.CMPP_SUBMIT:
 				count := atomic.AddInt64(&s.submitTaskCount, 1)
 				if int(count) > 50 {
-					s.Logger.Warn().Msgf("通道(%s) 当前submit任务数:%d, sleep 100ms", runId, count)
+					s.Logger.Warn().Msgf("通道(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
 					time.Sleep(time.Duration(100) * time.Millisecond)
 				}
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })

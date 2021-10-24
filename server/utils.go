@@ -14,7 +14,7 @@ import (
 func InitChan(runId string) {
 	utils.ExitSig.LoopActiveTest[runId] = make(chan bool, 1)
 	utils.ExitSig.DeliverySender[runId] = make(chan bool, 1)
-	//utils.ExitSig.LoopRead[id] = make(chan bool, 1)
+	utils.ExitSig.LoopRead[runId] = make(chan bool, 1)
 	//utils.ExitSig.LoopSend[id] = make(chan bool, 1)
 	//utils.ExitSig.SubmitRespMsgIdToQueue[id] = make(chan bool, 1)l
 	//utils.ExitSig.DeliveryMsgIdToQueue[id] = make(chan bool, 1)

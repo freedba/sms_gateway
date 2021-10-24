@@ -376,8 +376,8 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		}
 		//logger.Debug().Msgf("deliverNmc.MsgChan:%d,moNmc.MsgChan:%d",len(deliverNmc.MsgChan),len(moNmc.MsgChan))
 		select {
-		case <-s.exitSignalChan:
-			s.Logger.Debug().Msgf("账号(%s) 收到s.exitSignalChan信号,退出consumeDeliverMsg", s.RunId)
+		case <-utils.ExitSig.LoopRead[s.RunId]:
+			s.Logger.Debug().Msgf("账号(%s) 收到utils.ExitSig.LoopRead信号,退出consumeDeliverMsg", s.RunId)
 			goto EXIT
 		case deliverMsg := <-deliverNmc.MsgChan:
 			err = snd.msgWrite(1, deliverMsg.Body)

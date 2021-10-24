@@ -3,6 +3,7 @@ package server
 import (
 	"os"
 	"os/signal"
+	"sms_lib/utils"
 	"syscall"
 	"time"
 )
@@ -13,9 +14,12 @@ func signalHandle(sess *Sessions) {
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGKILL)
 	sig := <-exitChan
 	logger.Debug().Msgf("接收到退出信号：%v，关闭所有账号连接", sig)
-	for s := range sess.Conns {
-		logger.Debug().Msgf("关闭账号:%s", s.RunId)
-		close(s.exitSignalChan)
+	for name, users := range sess.Users {
+		for i := 0; i < len(users); i++ {
+			runId := name + ":" + sess.Users[name][i]
+			logger.Debug().Msgf("关闭账号:%s", runId)
+			close(utils.ExitSig.LoopRead[runId])
+		}
 	}
 
 	for i := 0; i < 5; i++ {
@@ -30,8 +34,7 @@ func signalHandle(sess *Sessions) {
 
 	close(SignalExit)
 
-	err := sess.ln.Close()
-	if err != nil {
+	if err := sess.ln.Close(); err != nil {
 		logger.Error().Msgf("sess.ln.Close error: %v", err)
 	}
 
