@@ -22,15 +22,40 @@ import (
 	"time"
 )
 
+type Sessions struct {
+	ln         net.Listener
+	Users      map[string][]string
+	RemoteAddr string
+	mLock      *sync.Mutex
+}
+
+func (sess *Sessions) Add(name string, strPoint string) {
+	sess.mLock.Lock()
+	defer sess.mLock.Unlock()
+	sess.Users[name] = append(sess.Users[name], strPoint)
+}
+
+func (sess *Sessions) Done(name string, strPoint string) {
+	sess.mLock.Lock()
+	defer sess.mLock.Unlock()
+	s := sess.Users[name]
+	sess.Users[name] = utils.SliceRemove(s, strPoint)
+	if len(sess.Users[name]) == 0 {
+		delete(sess.Users, name)
+	}
+}
+
 type SrvConn struct {
 	conn       net.Conn
 	addr       string
 	RemoteAddr string
 	Account    AccountsInfo
 
-	RunId  string
-	Logger *levellogger.Logger
-	//Wg                    *sync.WaitGroup
+	RunId     string
+	Logger    *levellogger.Logger
+	rw        *protocol.PacketRW
+	waitGroup utils.WaitGroupWrapper
+
 	exitHandleCommandChan chan struct{}
 	ReadLoopRunning       int32
 	deliverSenderExit     int32
@@ -58,32 +83,6 @@ type SrvConn struct {
 	invalidMessageCount uint32
 	submitTaskCount     int64
 	deliverTaskCount    int64
-
-	rw        *protocol.PacketRW
-	waitGroup utils.WaitGroupWrapper
-}
-
-type Sessions struct {
-	ln         net.Listener
-	Users      map[string][]string
-	RemoteAddr string
-	mLock      *sync.Mutex
-}
-
-func (sess *Sessions) Add(name string, strPoint string) {
-	sess.mLock.Lock()
-	defer sess.mLock.Unlock()
-	sess.Users[name] = append(sess.Users[name], strPoint)
-}
-
-func (sess *Sessions) Done(name string, strPoint string) {
-	sess.mLock.Lock()
-	defer sess.mLock.Unlock()
-	s := sess.Users[name]
-	sess.Users[name] = utils.SliceRemove(s, strPoint)
-	if len(sess.Users[name]) == 0 {
-		delete(sess.Users, name)
-	}
 }
 
 func Listen(sess *Sessions) {
@@ -206,8 +205,8 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.waitGroup.Wrap(func() { SubmitMsgIdToQueue(s) })
 	s.waitGroup.Wrap(func() { DeliverPush(s) })
 	s.waitGroup.Wrap(func() { s.LoopActiveTest() })
-	s.waitGroup.Wait()
 
+	s.waitGroup.Wait()
 EXIT:
 	s.Close()
 	sess.Done(s.Account.NickName, strPoint)
@@ -235,8 +234,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 
 	isLogin, ok := sess.Users[sourceAddr.String()]
 	if ok && len(isLogin) > 0 {
-		logger.Error().Msgf("账号(%s) 已登录过", sourceAddr.String())
-		//return utils.Errs[utils.ErrNoConnAuthFailed]
+		logger.Warn().Msgf("账号(%s) 已登录过", sourceAddr.String())
 	}
 
 	rKey := "index:user:userinfo:"
