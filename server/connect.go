@@ -381,7 +381,7 @@ func (s *SrvConn) ReadLoop() {
 				continue
 			}
 			if err == io.EOF {
-				s.Logger.Error().Msgf("通道(%s) IO error - %s, s.IsClosing:%v", runId, err, s.IsClosing())
+				s.Logger.Error().Msgf("通道(%s) IO EOF error %s, s.IsClosing:%v", runId, err, s.IsClosing())
 				goto EXIT
 			}
 			if !strings.Contains(err.Error(), "use of closed network connection") {
@@ -623,7 +623,6 @@ EXIT:
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
 	s.Logger.Error().Msgf("账号(%s) close(s.exitHandleCommandChan), will exit HandleCommand", runId)
-
 }
 
 func (s *SrvConn) LoopActiveTest() {
