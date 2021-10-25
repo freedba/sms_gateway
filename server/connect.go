@@ -140,10 +140,8 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	var data []byte
 	var strPoint string
 
-	qLen := config.GetQlen()
-	if qLen < 16 {
-		qLen = 16
-	}
+	qLen := utils.GetQlen()
+
 	s := &SrvConn{
 		conn:                  conn,
 		RemoteAddr:            sess.RemoteAddr,

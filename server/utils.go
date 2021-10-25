@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"github.com/bwmarrin/snowflake"
-	"sms_lib/config"
 	"sms_lib/utils"
 	"strconv"
 	"sync"
@@ -25,11 +24,6 @@ func InitChan(runId string) {
 	utils.HbSeqId.SeqId[runId] = make(chan uint32, 1)
 	//utils.NotifySig.IsTransfer[id] = make(chan bool, 1)
 	//utils.NotifySig.SendMessage[id] = make(chan bool, 1)
-	qlen := config.GetQlen()
-	if qlen < 16 {
-		qlen = 16
-	}
-	logger.Debug().Msgf("队列缓冲值：%d", qlen)
 	//HandleSeqId.SubmitResp[id] = make(chan protocol.SubmitResp, qlen)
 	//HandleSeqId.Deliver[id] = make(chan protocol.Deliver, qlen)
 	//HandleSeqId.Command[id] = make(chan []byte, qlen)
