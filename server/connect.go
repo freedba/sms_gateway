@@ -99,12 +99,14 @@ func Listen(sess *Sessions) {
 		logger.Error().Msgf("error listening: %v", err.Error())
 		return
 	}
+
 	defer func(ln net.Listener) {
 		err := ln.Close()
 		if err != nil {
 			logger.Error().Msgf("ln.Close error: %v", err)
 		}
 	}(ln)
+
 	sess.ln = ln
 	go signalHandle(sess)
 
@@ -140,7 +142,8 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	var data []byte
 	var strPoint string
 
-	qLen := utils.GetQlen()
+	qLen := utils.GetAttr("qlen")
+	logger.Info().Msgf("队列缓冲值: %d", qLen)
 
 	s := &SrvConn{
 		conn:                  conn,
