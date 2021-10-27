@@ -234,8 +234,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	}
 
 	isLogin, ok := sess.Users[sourceAddr.String()]
-	if ok && len(isLogin) > 0 {
-		logger.Warn().Msgf("账号(%s) 已登录过", sourceAddr.String())
+	if ok && len(isLogin) == 5 {
+		logger.Warn().Msgf("账号(%s) 登录已超过10个连接", sourceAddr.String())
 	}
 
 	rKey := "index:user:userinfo:"
@@ -435,7 +435,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 	var flowVelocity = &utils.FlowVelocity{
 		CurrTime: utils.GetCurrTimestamp(unit),
 		LastTime: utils.GetCurrTimestamp(unit),
-		Rate:     s.Account.FlowVelocity, //流速控制
+		Rate:     s.Account.ConnFlowVelocity, //流速控制
 		Unit:     unit,
 		Duration: 1000000000, //纳秒
 		RunMode:  runMode,
@@ -518,7 +518,7 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	dr.UnPack(buf)
 	dr.SeqId = h.SeqId
 	if dr.Result != 0 {
-		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgid: %d",
+		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgId: %d",
 			runId, dr.Result, dr.MsgId)
 	}
 	timer := time.NewTimer(utils.Timeout)
@@ -665,8 +665,7 @@ func (s *SrvConn) LoopActiveTest() {
 			r.SeqId = recvSeqId
 			logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
 				runId, recvSeqId, timer1, timer2)
-			err := r.IOWrite(s.rw)
-			if err != nil {
+			if err := r.IOWrite(s.rw); err != nil {
 				s.Logger.Error().Msgf("账号(%s) 发送心跳应答包命令(CMPP_ACTIVE_TEST_RESP) error: %v", runId, err)
 			}
 			timer1 = 0

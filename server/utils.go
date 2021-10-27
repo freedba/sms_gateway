@@ -43,7 +43,6 @@ func NewSnowflakeNode() {
 
 func generateMsgID() uint64 {
 	msgId := snowNode.Generate().Int64()
-	//logger.Debug().Msgf("generate msgid: %d",msgId)
 	return uint64(msgId)
 }
 

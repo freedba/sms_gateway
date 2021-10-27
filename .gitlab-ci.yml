@@ -62,6 +62,7 @@ Build dev docker image:
     - echo "https://mirrors.cloud.tencent.com/alpine/latest-stable/main" > /etc/apk/repositories
     - apk --no-cache add tzdata
     - cp /usr/share/zoneinfo/Asia/Shanghai config/localtime
+    - cp -rf /usr/share/zoneinfo config/zoneinfo
   script:
     - docker build -t ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest .
   only:
@@ -88,6 +89,7 @@ Build prd docker image:
     - echo "https://mirrors.cloud.tencent.com/alpine/latest-stable/main" > /etc/apk/repositories
     - apk --no-cache add tzdata
     - cp /usr/share/zoneinfo/Asia/Shanghai config/localtime
+    - cp -rf /usr/share/zoneinfo config/zoneinfo
   script:
     - docker build -t ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest .
   only:

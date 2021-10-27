@@ -135,7 +135,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 		}
 	}
 	sendLen := int64(len(utils.Utf8ToUcs2([]byte(hsm.TaskContent))))
-	hsm.IsneedReceipt = s.Account.IsneedReceipt
+	hsm.IsneedReceipt = s.Account.IsNeedReceipt
 	hsm.NeedReceiptType = s.Account.NeedReceiptType
 	hsm.IsHaveSelected = s.Account.IsHaveSelected
 	//hsm.DevelopNo = developCode
@@ -319,7 +319,7 @@ func DeliverPush(s *SrvConn) {
 
 	topicPrefix := cfg.DeliverSend
 	topicName := topicPrefix + strconv.FormatInt(chid, 10)
-	deliverNmc, err := models.Consumer(topicPrefix, int(chid), 1)
+	deliverNmc, err := models.InitConsumer(topicPrefix, strconv.Itoa(int(chid)), 1)
 	if err != nil {
 		s.Logger.Error().Msgf("账号(%s) 启动消费 (%s) 失败: %v, Exiting DeliverSend...",
 			user, topicName, err)
@@ -328,7 +328,7 @@ func DeliverPush(s *SrvConn) {
 
 	topicPrefix = cfg.DeliverMoSend
 	topicName = topicPrefix + strconv.FormatInt(chid, 10)
-	moNmc, err = models.Consumer(topicPrefix, int(chid), 1)
+	moNmc, err = models.InitConsumer(topicPrefix, strconv.Itoa(int(chid)), 1)
 	if err != nil {
 		s.Logger.Error().Msgf("账号(%s) 启动消费者 (%s) 失败: %v, Exiting DeliverSend...",
 			user, topicName, err)

@@ -11,11 +11,10 @@ import (
 	"time"
 )
 
-var signalExit chan struct{}
+//var signalExit chan struct{}
 
 func ServerSupervise(sess *server.Sessions) {
 	logger.Debug().Msgf("启动 ServerSupervisory 协程...")
-	//var err error
 	timeout := utils.Timeout * 6
 	timer := time.NewTimer(timeout)
 	threshold := config.GetThreshold()
@@ -29,7 +28,9 @@ func ServerSupervise(sess *server.Sessions) {
 		if utils.GetCpuPercent() > threshold {
 			logger.Warn().Msgf("当前节点cpu使用率已超%2.f%%,负载过高", threshold)
 		}
-
+		for user, conns := range sess.Users {
+			logger.Info().Msgf("账号(%s) 已建立的连接数：%d", user, len(conns))
+		}
 		select {
 		case <-server.SignalExit:
 			logger.Debug().Msgf("退出 ServerSupervisory 协程...")
