@@ -184,7 +184,7 @@ func (a arrMsgs) batchCreate(s *SrvConn) {
 		tbName1 = "yx_user_send_task_fornsqd"
 		tbName2 = "yx_user_send_task_content_fornsqd"
 	} else {
-		tbName2 = "yx_user_send_code_task_fornsqd"
+		tbName1 = "yx_user_send_code_task_fornsqd"
 		tbName2 = "yx_user_send_code_task_content_fornsqd"
 	}
 
