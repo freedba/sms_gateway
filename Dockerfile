@@ -3,7 +3,7 @@ FROM alpine:3.10
 WORKDIR /sms_gateway
 
 ADD config/localtime /etc/
-ADD config/zoneinfo /usr/share
+COPY config/zoneinfo /usr/share/zoneinfo
 RUN echo 'Asia/Shanghai' >/etc/timezone
 
 ADD bin/sms_gateway sms_gateway
