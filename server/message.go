@@ -18,7 +18,6 @@ import (
 func SubmitMsgIdToQueue(s *SrvConn) {
 	flag := false
 	timer := time.NewTimer(utils.Timeout)
-	//user := s.Account.NickName
 	var sendMsgId []string
 	var content []byte
 	ctx, cancel := context.WithCancel(context.Background())
@@ -138,7 +137,6 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	hsm.IsneedReceipt = s.Account.IsNeedReceipt
 	hsm.NeedReceiptType = s.Account.NeedReceiptType
 	hsm.IsHaveSelected = s.Account.IsHaveSelected
-	//hsm.DevelopNo = developCode
 	hsm.RealNum = 1
 	hsm.SendNum = 1
 	hsm.From = 2
