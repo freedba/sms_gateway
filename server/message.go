@@ -66,7 +66,8 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 					content = utils.GbkToUtf8(content)
 				}
 				hsm.TaskContent = string(content)
-				hsm.DevelopNo = strings.TrimSpace(string(p.SrcId.Data[len(s.Account.CmppDestId):]))
+				hsm.DevelopNo = string(p.SrcId.Data[len(s.Account.CmppDestId):])
+				hsm.DevelopNo = strings.ReplaceAll(hsm.DevelopNo, "\u0000", "")
 				logger.Debug().Msgf("hsm.DevelopNo:%s", hsm.DevelopNo)
 				for _, v := range p.DestTerminalId {
 					destTerminalId = append(destTerminalId, v.String())
