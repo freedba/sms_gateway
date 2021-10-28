@@ -67,7 +67,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				}
 				hsm.TaskContent = string(content)
 				hsm.DevelopNo = strings.TrimSpace(string(p.SrcId.Data[len(s.Account.CmppDestId):]))
-				//logger.Debug().Msgf("hsm.DevelopNo:%s",hsm.DevelopNo)
+				logger.Debug().Msgf("hsm.DevelopNo:%s", hsm.DevelopNo)
 				for _, v := range p.DestTerminalId {
 					destTerminalId = append(destTerminalId, v.String())
 				}
