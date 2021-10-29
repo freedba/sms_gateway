@@ -35,29 +35,32 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		}
 		select {
 		case p := <-s.SubmitChan:
+			msgId := strconv.FormatUint(p.MsgId, 10)
 			if p.TPUdhi == 1 { //长短信
 				udhi := p.MsgContent[0:6]
 				rand := udhi[3]
 				if _, ok := s.longSms[rand]; !ok {
 					s.longSms = make(map[uint8]map[uint8][]byte)
 					s.longSms[rand] = make(map[uint8][]byte)
+					s.longMsgId = make(map[uint8][]string)
 				}
 				pkTotal := p.PkTotal
 				pkNumber := p.PkNumber
 				s.longSms[rand][pkNumber] = p.MsgContent[6:]
+				s.longMsgId[rand] = append(s.longMsgId[rand], msgId)
 				if len(s.longSms[rand]) == int(pkTotal) {
 					for i := uint8(1); i <= pkTotal; i++ {
 						content = append(content, s.longSms[rand][i]...)
 					}
+					sendMsgId = s.longMsgId[rand]
 					flag = true
 				}
 			} else if p.TPUdhi == 0 { //短短信
 				content = p.MsgContent
+				sendMsgId = append(sendMsgId, msgId)
 				flag = true
 			}
 
-			msgId := strconv.FormatUint(p.MsgId, 10)
-			sendMsgId = append(sendMsgId, msgId)
 			if flag {
 				hsm := &HttpSubmitMessageInfo{}
 				var destTerminalId []string
@@ -73,8 +76,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				}
 				hsm.MobileContent = strings.Join(destTerminalId, ",")
 				hsm.SendMsgId = strings.Join(sendMsgId, ",")
-				//p.MsgContent = content
-				logger.Debug().Msgf("content:%s,sendMsgId:%s", string(p.MsgContent), sendMsgId)
+				logger.Debug().Msgf("content:%d,sendMsgId:%s", p.PkTotal, sendMsgId)
 				hsm.Wrapper(s)
 				s.SubmitToQueueCount++
 				if s.SubmitToQueueCount%utils.PeekInterval == 0 {
@@ -86,6 +88,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				sendMsgId = nil
 				content = nil
 				s.longSms = nil
+				s.longMsgId = nil
 			}
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at: %v", s.RunId, t)

@@ -66,6 +66,7 @@ type SrvConn struct {
 	SeqId                 uint32
 	LastSeqId             uint32
 	longSms               map[uint8]map[uint8][]byte
+	longMsgId             map[uint8][]string
 	deliverMsgMap         cmap.ConcurrentMap
 	deliverResendCountMap cmap.ConcurrentMap
 
