@@ -97,6 +97,8 @@ EXIT:
 
 func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	var topicName string
+	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
 	//developCode := string(p.SrcId.Data[len(s.Account.CmppDestId):])
 	//hsm := &HttpSubmitMessageInfo{}
 	hsm.Uid = s.Account.Id
@@ -149,7 +151,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	if err != nil {
 		select {
 		case s.hsmChan <- *hsm: //入nsq失败后入mysql
-		case t := <-time.After(utils.Timeout):
+		case t := <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) 写管道 s.HsmChan 超时, Tick at %v", s.RunId, t)
 			s.Logger.Debug().Msgf("账号(%s) record hsm: %v ", s.RunId, hsm)
 		}
