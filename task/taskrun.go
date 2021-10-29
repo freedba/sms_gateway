@@ -17,6 +17,7 @@ func ServerSupervise(sess *server.Sessions) {
 	logger.Debug().Msgf("启动 ServerSupervisory 协程...")
 	timeout := utils.Timeout * 6
 	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	threshold := config.GetThreshold()
 	for {
 		utils.ResetTimer(timer, timeout)

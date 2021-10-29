@@ -18,6 +18,7 @@ import (
 func SubmitMsgIdToQueue(s *SrvConn) {
 	flag := false
 	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
 	var sendMsgId []string
 	var content []byte
 	ctx, cancel := context.WithCancel(context.Background())
@@ -141,7 +142,6 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	hsm.From = 2
 	hsm.SendLength = sendLen
 	hsm.AppointmentTime = 0
-	//hsm.SendMsgId = strings.Join(sendMsgId, ",")
 	hsm.Extra = `{"from":"cmppserver"}`
 	hsm.TaskNo = utils.GetUuid()
 	hsm.SubmitTime = time.Now().Unix()
@@ -257,6 +257,7 @@ func SubmitMsgIdToDB(ctx context.Context, s *SrvConn) {
 	var todb = false
 	a := arrMsgs{}
 	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
 
@@ -356,6 +357,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 	s := snd.s
 	var err error
 	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
 	deliverNmc := snd.deliverNmc
 	moNmc := snd.moNmc
 	ctx, cancel := context.WithCancel(context.Background())
@@ -487,6 +489,7 @@ func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
 	s := snd.s
 	runId := s.RunId
 	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():

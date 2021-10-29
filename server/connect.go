@@ -235,7 +235,9 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 
 	isLogin, ok := sess.Users[sourceAddr.String()]
 	if ok && len(isLogin) == 5 {
-		logger.Warn().Msgf("账号(%s) 登录已超过10个连接", sourceAddr.String())
+		logger.Warn().Msgf("账号(%s) 登录已超过5个连接", sourceAddr.String())
+		resp.Status = protocol.ErrnoConnectAuthFaild
+		return resp, err
 	}
 
 	rKey := "index:user:userinfo:"
@@ -431,6 +433,7 @@ EXIT:
 func (s *SrvConn) HandleCommand(ctx context.Context) {
 	runId := s.RunId
 	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
 	var unit = "ns"
 	var flowVelocity = &utils.FlowVelocity{
 		CurrTime: utils.GetCurrTimestamp(unit),

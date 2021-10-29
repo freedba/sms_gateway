@@ -89,7 +89,7 @@ Build prd docker image:
     - apk --no-cache add tzdata
     - cp -rf /usr/share/zoneinfo config/zoneinfo
   script:
-    - docker build -t ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest .
+    - docker build -t ${CI_REGISTRY_UCLOUD_URL}/fulong/${PROJ_NAME}:latest .
   only:
     - tags
 
@@ -99,8 +99,8 @@ Push prd docker image:
     - sms
   stage: push
   before_script:
-    - echo ${CI_REGISTRY_TENCENT_PASSWORD} | docker login ${CI_REGISTRY_TENCENT_URL} --username ${CI_REGISTRY_TENCENT_USER} --password-stdin
+    - echo ${CI_REGISTRY_UCLOUD_PASSWORD} | docker login ${CI_REGISTRY_UCLOUD_URL} --username ${CI_REGISTRY_UCLOUD_USER} --password-stdin
   script:
-    - docker push ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest
+    - docker push ${CI_REGISTRY_UCLOUD_URL}/fulong/${PROJ_NAME}:latest
   only:
     - tags
