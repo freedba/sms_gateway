@@ -17,6 +17,7 @@ func init() {
 
 func InitNodeId() {
 	levellogger.NodeId = models.GetNodeId(runMode)
+	utils.NodeId = levellogger.NodeId
 }
 
 func InitSeqId() uint32 {

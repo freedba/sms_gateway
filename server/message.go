@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/youzan/go-nsq"
 	"sms_lib/config"
 	"sms_lib/models"
 	"sms_lib/protocol"
@@ -348,8 +349,9 @@ func DeliverPush(s *SrvConn) {
 	}
 
 	snd.consumeDeliverMsg()
-	deliverNmc.Consumer.Stop()
-	moNmc.Consumer.Stop()
+	time.Sleep(time.Duration(1) * time.Second)
+	snd.cleanChan(deliverNmc.MsgChan)
+	snd.cleanChan(moNmc.MsgChan)
 EXIT:
 	atomic.StoreInt32(&s.deliverSenderExit, 1)
 	if atomic.LoadInt32(&s.ReadLoopRunning) == 1 {
@@ -406,8 +408,26 @@ func (snd *deliverSender) consumeDeliverMsg() {
 EXIT:
 	close(deliverNmc.Stop)
 	close(moNmc.Stop)
+
 	s.Logger.Debug().Msgf("账号(%s) Exiting deliverMsg", s.RunId)
 	return
+}
+
+func (snd *deliverSender) cleanChan(msg chan nsq.Message) {
+	s := snd.s
+	s.Logger.Info().Msgf("账号(%s) 开始清理chan缓存", s.RunId)
+	for {
+		if len(msg) == 0 {
+			break
+		}
+		select {
+		case m := <-msg:
+			s.Logger.Info().Msgf("账号(%s) record :%v", m)
+		default:
+			break
+		}
+	}
+	s.Logger.Info().Msgf("账号(%s) chan缓存已完成清理", s.RunId)
 }
 
 func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {

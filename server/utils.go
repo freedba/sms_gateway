@@ -34,7 +34,7 @@ func NewSnowflakeNode() {
 	ns := time.Date(2021, 1, 0, 0, 0, 0, 0, time.UTC).UnixNano()
 	ms := ns / 1e6
 	snowflake.Epoch = ms
-	logger.Debug().Msgf("snowflake.Epoch:%d", snowflake.Epoch)
+	logger.Debug().Msgf("snowflake.Epoch:%d,utils.NodeId:%d", snowflake.Epoch, utils.NodeId)
 	snowNode, err = snowflake.NewNode(utils.NodeId)
 	if err != nil {
 		logger.Panic().Msgf("New Snowflake Node err:%v", err)

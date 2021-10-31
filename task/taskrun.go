@@ -26,6 +26,9 @@ func ServerSupervise(sess *server.Sessions) {
 
 		utils.PrintMemStats()
 
+		models.EtcdCli.LeaseTTL()
+		models.EtcdCli.GetPrefix("/SMSGateway")
+
 		if utils.GetCpuPercent() > threshold {
 			logger.Warn().Msgf("当前节点cpu使用率已超%2.f%%,负载过高", threshold)
 		}
@@ -54,6 +57,14 @@ func LoopSrvMain() {
 	levellogger.Llogger = levellogger.NewLogger("")
 	server.NewSnowflakeNode()
 	server.SeqId = server.InitSeqId()
+	// init etcd
+	models.NewEtcd()
+	models.EtcdCli.LeaseGrant(30)
+	go models.EtcdCli.LeaseRenew()
+	//models.EtcdCli.Set("/server/1/a","33",true)
+	//models.EtcdCli.Set("/server/2/a","34",true)
+	//models.EtcdCli.GetPrefix("/server")
+	//logger.Info().Msgf("%s",models.EtcdCli.)
 
 	var topics []string
 	models.Prn, err = models.NewTopicPubMgr(topics)

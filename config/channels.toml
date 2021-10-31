@@ -6,6 +6,7 @@ msgnum = -1
 rate = 100
 gap = 1000
 nsqlookupds = ["nsq01.fulong.top:4161","nsq02.fulong.top:4161","nsq03.fulong.top:4161"]
+etcd = ["127.0.0.1:2379"]
 runid = [230]
 qlen = 20
 listen = "0.0.0.0:7890"

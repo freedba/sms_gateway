@@ -22,29 +22,6 @@ import (
 	"time"
 )
 
-type Sessions struct {
-	ln         net.Listener
-	Users      map[string][]string
-	RemoteAddr string
-	mLock      *sync.Mutex
-}
-
-func (sess *Sessions) Add(name string, strPoint string) {
-	sess.mLock.Lock()
-	defer sess.mLock.Unlock()
-	sess.Users[name] = append(sess.Users[name], strPoint)
-}
-
-func (sess *Sessions) Done(name string, strPoint string) {
-	sess.mLock.Lock()
-	defer sess.mLock.Unlock()
-	s := sess.Users[name]
-	sess.Users[name] = utils.SliceRemove(s, strPoint)
-	if len(sess.Users[name]) == 0 {
-		delete(sess.Users, name)
-	}
-}
-
 type SrvConn struct {
 	conn       net.Conn
 	addr       string
@@ -209,9 +186,9 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.waitGroup.Wrap(func() { s.LoopActiveTest() })
 
 	s.waitGroup.Wait()
+	sess.Done(s.Account.NickName, strPoint)
 EXIT:
 	s.Close()
-	sess.Done(s.Account.NickName, strPoint)
 	logger.Debug().Msgf("socket %v, Exiting HandleNewConn...", s.conn)
 }
 
@@ -226,6 +203,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	resp.TotalLen = protocol.HeaderLen + 1 + 16 + 1
 	resp.Status = 0
 	sourceAddr := req.SourceAddr
+	user := sourceAddr.String()
 
 	if len(buf) != 27 {
 		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
@@ -234,18 +212,11 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 		return nil, err
 	}
 
-	isLogin, ok := sess.Users[sourceAddr.String()]
-	if ok && len(isLogin) == 5 {
-		logger.Warn().Msgf("账号(%s) 登录已超过5个连接", sourceAddr.String())
-		resp.Status = protocol.ErrnoConnectAuthFaild
-		return resp, err
-	}
-
 	rKey := "index:user:userinfo:"
-	str := models.RedisHGet(rKey, sourceAddr.String())
+	str := models.RedisHGet(rKey, user)
 	if str == "" {
 		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
-		logger.Error().Msgf("账号(%s) 不存在, error:%v", sourceAddr.String(), err)
+		logger.Error().Msgf("账号(%s) 不存在, error:%v", user, err)
 		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
 	}
@@ -257,6 +228,19 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 		logger.Error().Msgf("accounts json.unmarshal error:%v, exit...", err)
 		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
 		resp.Status = protocol.ErrnoConnectInvalidStruct
+		return resp, err
+	}
+	if account.ConnFlowVelocity == 0 {
+		account.ConnFlowVelocity = 100
+	}
+
+	currConns := sess.GetUserConns(user)
+	maxConns := account.FlowVelocity / account.ConnFlowVelocity
+	//isLogin, ok := sess.Users[user]
+	//if ok && len(isLogin) == 5 {
+	if currConns+1 > maxConns {
+		logger.Error().Msgf("账号(%s) 当前建立的连接数已达最大允许连接数:%d", user, maxConns)
+		resp.Status = protocol.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
@@ -436,6 +420,11 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	var unit = "ns"
+
+	if s.Account.ConnFlowVelocity == 0 {
+		s.Account.ConnFlowVelocity = 300
+	}
+
 	var flowVelocity = &utils.FlowVelocity{
 		CurrTime: utils.GetCurrTimestamp(unit),
 		LastTime: utils.GetCurrTimestamp(unit),
