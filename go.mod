@@ -2,6 +2,8 @@ module sms_gateway
 
 go 1.17
 
+replace sms_lib => ../sms_lib
+
 require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/chenhg5/collection v0.0.0-20200925143926-f403b87088f9
@@ -10,6 +12,7 @@ require (
 	github.com/youzan/go-nsq v1.3.1
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	golang.org/x/text v0.3.7 // indirect
+	gopkg.in/shaxbee/go-snowflake.v1 v1.0.0-20160420053823-c1334de075db
 	//gopkg.in/shaxbee/go-snowflake.v1 v1.0.0-20160420053823-c1334de075db
 	sms_lib v0.0.0-00010101000000-000000000000
 )
@@ -62,5 +65,3 @@ require (
 	gorm.io/driver/mysql v1.1.2 // indirect
 	gorm.io/gorm v1.21.16 // indirect
 )
-
-replace sms_lib => ../sms_lib
