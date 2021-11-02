@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"net"
-	"sms_lib/models"
 	"sms_lib/utils"
 	"strconv"
 	"sync"
@@ -19,7 +18,7 @@ type Sessions struct {
 
 func (sess *Sessions) GetUserConns(name string) int {
 	var conns int64
-	keyMaps := models.EtcdCli.GetPrefix("/SMSGateway")
+	keyMaps := EtcdCli.GetPrefix("/SMSGateway")
 	for k, v := range keyMaps {
 		logger.Debug().Msgf("key: %s, val: %s, name: %s", k, v, name)
 		if bytes.Contains([]byte(k), []byte(name)) {
@@ -37,9 +36,9 @@ func (sess *Sessions) UpdEtcdKey(name string) {
 	key := "/SMSGateway/" + strconv.FormatInt(utils.NodeId, 10) + "/" + name
 	val := strconv.Itoa(len(sess.Users[name]))
 	if val == "0" {
-		models.EtcdCli.Delete(key)
+		EtcdCli.Delete(key)
 	} else {
-		models.EtcdCli.Set(key, val, true)
+		EtcdCli.Set(key, val, true)
 	}
 }
 

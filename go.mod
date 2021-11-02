@@ -10,6 +10,7 @@ require (
 	github.com/orcaman/concurrent-map v0.0.0-20210501183033-44dafcb38ecc
 	github.com/pkg/profile v1.6.0
 	github.com/youzan/go-nsq v1.3.1
+	go.etcd.io/etcd/client/v3 v3.5.1
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/shaxbee/go-snowflake.v1 v1.0.0-20160420053823-c1334de075db
@@ -51,7 +52,6 @@ require (
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.1 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.1 // indirect
-	go.etcd.io/etcd/client/v3 v3.5.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.17.0 // indirect
