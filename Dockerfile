@@ -14,6 +14,6 @@ EXPOSE 7890
 
 VOLUME /data
 
-RUN mkdir /data/logs
+RUN mkdir /data/log
 
 ENTRYPOINT ["./sms_gateway"]
