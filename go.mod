@@ -13,8 +13,6 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.1
 	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	golang.org/x/text v0.3.7 // indirect
-	gopkg.in/shaxbee/go-snowflake.v1 v1.0.0-20160420053823-c1334de075db
-	//gopkg.in/shaxbee/go-snowflake.v1 v1.0.0-20160420053823-c1334de075db
 	sms_lib v0.0.0-00010101000000-000000000000
 )
 
