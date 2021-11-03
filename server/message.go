@@ -139,7 +139,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 			break
 		}
 	}
-	sendLen := int64(len(utils.Utf8ToUcs2([]byte(hsm.TaskContent))))
+	sendLen := int64(len(hsm.TaskContent))
 	hsm.IsneedReceipt = s.Account.IsNeedReceipt
 	hsm.NeedReceiptType = s.Account.NeedReceiptType
 	hsm.IsHaveSelected = s.Account.IsHaveSelected
