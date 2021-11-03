@@ -59,9 +59,9 @@ func (self *EtcdClient) LeaseGrant(ttl int64) {
 
 func (self *EtcdClient) LeaseRenew() {
 	cli := self.EtcdCli
-	ctx, cancel := context.WithTimeout(context.Background(), self.timeout)
-	ch, kaErr := cli.KeepAlive(ctx, self.leaseId)
-	cancel()
+	//ctx, cancel := context.WithTimeout(context.Background(), self.timeout)
+	ch, kaErr := cli.KeepAlive(context.TODO(), self.leaseId)
+	//cancel()
 	if kaErr != nil {
 		logger.Panic().Msgf("Lease renew error:%v", kaErr)
 	}
@@ -74,7 +74,7 @@ func (self *EtcdClient) LeaseRenew() {
 			if ka == nil {
 				logger.Panic().Msgf("keep alive failed: %v", ka)
 			} else {
-				logger.Debug().Msgf("ka:%v", ka)
+				logger.Debug().Msgf("Lease keep alive:%v", ka)
 			}
 		}
 	}
