@@ -101,6 +101,7 @@ EXIT:
 
 func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	var topicName string
+	discard := true
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	//developCode := string(p.SrcId.Data[len(s.Account.CmppDestId):])
@@ -114,30 +115,28 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	}
 	for _, v := range s.Account.BusinessInfo {
 		if v.BusinessId == businessId {
-			hsm.Deduct = v.Deduct
-			if v.Status == 1 {
-				hsm.SendStatus = v.Status
-				hsm.YidongChannelId = 0
-				hsm.DianxinChannelId = 0
-				hsm.LiantongChannelId = 0
-				hsm.FreeTrial = 1
-			} else {
-				if v.YidongChannelId != 0 && v.LiantongChannelId != 0 && v.DianxinChannelId != 0 {
-					hsm.YidongChannelId = v.YidongChannelId
-					hsm.LiantongChannelId = v.LiantongChannelId
-					hsm.DianxinChannelId = v.DianxinChannelId
-					hsm.SendStatus = 2
-					hsm.FreeTrial = 2
-				} else {
-					hsm.SendStatus = 1
-					hsm.YidongChannelId = 0
-					hsm.LiantongChannelId = 0
-					hsm.DianxinChannelId = 0
-					hsm.FreeTrial = 1
-				}
+			if v.Status != 1 {
+				break
 			}
-			break
+			discard = false
+			hsm.Deduct = v.Deduct
+			if v.YidongChannelId != 0 && v.LiantongChannelId != 0 && v.DianxinChannelId != 0 {
+				hsm.YidongChannelId = v.YidongChannelId
+				hsm.LiantongChannelId = v.LiantongChannelId
+				hsm.DianxinChannelId = v.DianxinChannelId
+				hsm.SendStatus = 2
+				hsm.FreeTrial = 2
+			} else {
+				hsm.YidongChannelId = 0
+				hsm.LiantongChannelId = 0
+				hsm.DianxinChannelId = 0
+				hsm.FreeTrial = 1
+				hsm.SendStatus = 1
+			}
 		}
+	}
+	if discard { //短信丢弃
+		return
 	}
 	sendLen := int64(len([]rune(hsm.TaskContent)))
 	hsm.IsneedReceipt = s.Account.IsNeedReceipt

@@ -48,8 +48,8 @@ func NewEtcd() {
 func (self *EtcdClient) LeaseGrant(ttl int64) {
 	cli := self.EtcdCli
 	ctx, cancel := context.WithTimeout(context.Background(), self.timeout)
+	defer cancel()
 	resp, err := cli.Grant(ctx, ttl)
-	cancel()
 	if err != nil {
 		logger.Panic().Msgf("Lease error:%v", err)
 	}
@@ -59,14 +59,16 @@ func (self *EtcdClient) LeaseGrant(ttl int64) {
 
 func (self *EtcdClient) LeaseRenew() {
 	cli := self.EtcdCli
-	ch, kaerr := cli.KeepAlive(context.TODO(), self.leaseId)
-	if kaerr != nil {
-		logger.Panic().Msgf("Lease renew error:%v", kaerr)
+	ctx, cancel := context.WithTimeout(context.Background(), self.timeout)
+	defer cancel()
+	ch, kaErr := cli.KeepAlive(ctx, self.leaseId)
+	if kaErr != nil {
+		logger.Panic().Msgf("Lease renew error:%v", kaErr)
 	}
 	for {
 		select {
 		case <-self.StopLease:
-			logger.Info().Msgf("stop lease renew")
+			logger.Error().Msgf("stop lease renew")
 			break
 		case ka := <-ch:
 			if ka == nil {
@@ -80,14 +82,15 @@ func (self *EtcdClient) LeaseRenew() {
 
 func (self *EtcdClient) LeaseTTL() {
 	cli := self.EtcdCli
-	resp, err := cli.TimeToLive(context.TODO(), self.leaseId)
+	ctx, cancel := context.WithTimeout(context.Background(), self.timeout)
+	defer cancel()
+	resp, err := cli.TimeToLive(ctx, self.leaseId)
 	if err != nil {
 		logger.Error().Msgf("cli.TimeToLive error:%v", err)
 		return
 	}
 	logger.Info().Msgf("LeaseTTL:%v, ID:%d,ttl:%d,GrantedTTL:%d,keys:%v",
 		resp, resp.ID, resp.TTL, resp.GrantedTTL, resp.Keys)
-
 }
 
 func (self *EtcdClient) Set(key string, value string, isLease bool) {
@@ -95,12 +98,12 @@ func (self *EtcdClient) Set(key string, value string, isLease bool) {
 	kv := self.kv
 	logger.Debug().Msgf("timeout:%v", self.timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), self.timeout)
+	defer cancel()
 	if isLease {
 		_, err = kv.Put(ctx, key, value, clientv3.WithLease(self.leaseId))
 	} else {
 		_, err = kv.Put(ctx, key, value)
 	}
-	cancel()
 	if err != nil {
 		logger.Error().Msgf("put to etcd failed, err:%v", err)
 	}
