@@ -9,7 +9,6 @@ import (
 
 func (s *SrvConn) makeDeliverMsg(msgId uint64) {
 	runId := s.RunId
-	//s.Logger.Info().Msgf("账号(%s) 启动虚拟网关",runId)
 	registerDelivery := 1
 	var err error
 	var b []byte
@@ -42,7 +41,7 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64) {
 	}
 	select {
 	case s.deliverFakeChan <- b:
-	case <-time.After(time.Duration(1) * time.Second):
+	case <-time.After(time.Duration(5) * time.Second):
 		s.Logger.Warn().Msgf("写入管道失败, s.deliverFakeChan len: %d", len(s.deliverFakeChan))
 	}
 }
