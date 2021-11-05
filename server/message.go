@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/youzan/go-nsq"
+	"math"
 	"sms_lib/config"
 	"sms_lib/models"
 	"sms_lib/protocol"
@@ -139,6 +140,12 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 		return
 	}
 	sendLen := int64(len([]rune(hsm.TaskContent)))
+	if sendLen > 70 {
+		num := math.Ceil(float64(sendLen) / float64(67))
+		hsm.RealNum = int64(num)
+	} else {
+		hsm.RealNum = 1
+	}
 	hsm.IsneedReceipt = s.Account.IsNeedReceipt
 	hsm.NeedReceiptType = s.Account.NeedReceiptType
 	hsm.IsHaveSelected = s.Account.IsHaveSelected
