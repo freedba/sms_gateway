@@ -147,7 +147,6 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	hsm.IsneedReceipt = s.Account.IsNeedReceipt
 	hsm.NeedReceiptType = s.Account.NeedReceiptType
 	hsm.IsHaveSelected = s.Account.IsHaveSelected
-	hsm.RealNum = 1
 	hsm.SendNum = 1
 	hsm.From = 2
 	hsm.SendLength = sendLen
