@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"sms_lib/utils"
 	"strconv"
+	"time"
 )
 
 func (s *SrvConn) makeDeliverMsg(msgId uint64) {
 	runId := s.RunId
+	//s.Logger.Info().Msgf("账号(%s) 启动虚拟网关",runId)
 	registerDelivery := 1
 	var err error
 	var b []byte
@@ -21,15 +23,10 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64) {
 		}
 		b, err = json.Marshal(moMsg)
 		if err != nil {
-			logger.Error().Msgf("帐号(%s) error marshal json:%v", runId, err)
+			s.Logger.Error().Msgf("帐号(%s) error marshal json:%v", runId, err)
 		}
 	}
 	if registerDelivery == 1 {
-		//select {
-		//case s.delverMoChan <- messageBody:
-		//default:
-		//}
-		//fmt.Println("deliverMsg topicName,", topicName)
 		deliverMsg := DeliverMsgInfo{
 			Mobile:        "18432130952",
 			MessageInfo:   "content",
@@ -40,11 +37,12 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64) {
 		}
 		b, err = json.Marshal(deliverMsg)
 		if err != nil {
-			logger.Error().Msgf("帐号(%s) error marshal json:%v", runId, err)
+			s.Logger.Error().Msgf("帐号(%s) error marshal json:%v", runId, err)
 		}
 	}
 	select {
 	case s.deliverFakeChan <- b:
-	default:
+	case <-time.After(time.Duration(1) * time.Second):
+		s.Logger.Warn().Msgf("写入管道失败, s.deliverFakeChan len: %d", len(s.deliverFakeChan))
 	}
 }

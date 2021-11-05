@@ -136,7 +136,9 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		deliverResendCountMap: cmap.New(),
 		rw:                    protocol.NewPacketRW(conn),
 	}
-
+	if FakeGateway == 1 {
+		s.deliverFakeChan = make(chan []byte, qLen)
+	}
 	h := &protocol.Header{}
 
 	s.rw.ReadTimeout = 10
