@@ -40,8 +40,8 @@ Make go binary:
   stage: make
   script:
     - go env -w GOPROXY=https://goproxy.cn,direct
-    - cd /tmp/$DEP_PROJ_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;git pull; else git checkout master; git pull; fi
-    - cd $GOPATH/src/$REPO_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;git pull; else git checkout master; git pull; fi
+    - cd /tmp/$DEP_PROJ_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;rm -rf .git/refs/heads/;git pull; else git checkout master; git pull; fi
+    - cd $GOPATH/src/$REPO_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;rm -rf .git/refs/heads/;git pull; else git checkout master; git pull; fi
     - go fmt $(go list ./... | grep -v /vendor/)
     - go vet $(go list ./... | grep -v /vendor/)
     - make build
