@@ -20,6 +20,7 @@ variables:
 # Thus, making a symbolic link corrects this.
 before_script:
   - rm -rf $GOPATH/src/$REPO_NAME
+  - rm -rf /builds/backend/sms_gateway/.git/
   - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
   - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
   - cd $GOPATH/src/$REPO_NAME
