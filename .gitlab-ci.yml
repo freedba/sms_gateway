@@ -19,8 +19,6 @@ variables:
 # repository in /go/src/gitlab.com/namespace/project
 # Thus, making a symbolic link corrects this.
 before_script:
-  - rm -rf $GOPATH/src/$REPO_NAME
-  - rm -rf /builds/backend/sms_gateway/.git/
   - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
   - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
   - cd $GOPATH/src/$REPO_NAME
@@ -42,8 +40,8 @@ Make go binary:
   stage: make
   script:
     - go env -w GOPROXY=https://goproxy.cn,direct
-    - cd /tmp/$DEP_PROJ_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;rm -rf .git/refs/heads/;git reset;git pull; else git checkout master; git pull; fi
-    - cd $GOPATH/src/$REPO_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;rm -rf .git/refs/heads/;git reset;git pull; else git checkout master; git pull; fi
+    - cd /tmp/$DEP_PROJ_NAME;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;git pull; else git checkout master; git pull; fi
+    - cd $GOPATH/src/$REPO_NAME;sleep 30;if [ "$CI_COMMIT_REF_NAME" = "develop" ]; then git checkout develop;git pull; else git checkout master; git pull; fi
     - go fmt $(go list ./... | grep -v /vendor/)
     - go vet $(go list ./... | grep -v /vendor/)
     - make build
