@@ -52,7 +52,7 @@ func LoopSrvMain() {
 	server.InitNodeId()
 	server.FakeGateway = config.GetFakeGateway()
 	if server.FakeGateway == 1 {
-		logger.Debug().Msgf("当前运行模拟网关模式")
+		logger.Info().Msgf("当前运行模拟网关模式")
 	}
 	levellogger.Llogger = levellogger.NewLogger("")
 	server.NewSnowflakeNode()
@@ -61,10 +61,6 @@ func LoopSrvMain() {
 	server.NewEtcd()
 	server.EtcdCli.LeaseGrant(30)
 	go server.EtcdCli.LeaseRenew()
-	//models.EtcdCli.Set("/server/1/a","33",true)
-	//models.EtcdCli.Set("/server/2/a","34",true)
-	//models.EtcdCli.GetPrefix("/server")
-	//logger.Info().Msgf("%s",models.EtcdCli.)
 
 	var topics []string
 	models.Prn, err = models.NewTopicPubMgr(topics)
