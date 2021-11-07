@@ -9,6 +9,7 @@ image: golang:1.17.2
 variables:
   # Please edit to your GitLab project
   PROJ_NAME: sms_gateway
+  $K8S_APP: sms-gateway
   REPO_NAME: git@gitlab.fulongzy.com:backend/${PROJ_NAME}.git
   DEP_PROJ_NAME: sms_lib
 
@@ -53,7 +54,7 @@ Make go binary:
     - develop
     - tags
 
-Build dev docker image:
+Build preview docker image:
   image: docker:19.03.13
   tags:
     - sms
@@ -67,7 +68,7 @@ Build dev docker image:
   only:
     - develop
 
-Push dev docker image:
+Push preview docker image:
   image: docker:19.03.13
   tags:
     - sms
@@ -78,6 +79,26 @@ Push dev docker image:
     - docker push ${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest
   only:
     - develop
+
+
+deploy preview image:
+    image: ubuntu:latest
+    tags:
+      - sms
+    stage: deploy
+    before_script:
+      - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y && apt-get install -y iputils-ping )'
+      - eval $(ssh-agent -s)
+      - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+      - mkdir -p ~/.ssh
+      - chmod 700 ~/.ssh
+      - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    script:
+      - ssh -o StrictHostKeyChecking=no -p12411 $SSH_USER@$TENCENT_HOST \
+        "kubectl rollout restart deployment/$K8S_APP"
+      # "kubectl set image deployment ${K8S_APP} *=${CI_REGISTRY_TENCENT_URL}/fulong/${PROJ_NAME}:latest"
+    only:
+      - develop
 
 Build prd docker image:
   image: docker:19.03.13
