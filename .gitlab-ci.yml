@@ -9,7 +9,7 @@ image: golang:1.17.2
 variables:
   # Please edit to your GitLab project
   PROJ_NAME: sms_gateway
-  $K8S_APP: sms-gateway
+  K8S_APP: sms-gateway
   REPO_NAME: git@gitlab.fulongzy.com:backend/${PROJ_NAME}.git
   DEP_PROJ_NAME: sms_lib
 
