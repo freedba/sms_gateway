@@ -78,7 +78,8 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				}
 				hsm.MobileContent = strings.Join(destTerminalId, ",")
 				hsm.SendMsgId = strings.Join(sendMsgId, ",")
-				logger.Debug().Msgf("content:%d,sendMsgId:%s,hsm.MobileContent:%s", p.PkTotal, sendMsgId, hsm.MobileContent)
+				logger.Debug().Msgf("p.PkTotal:%d,sendMsgId:%s,hsm.MobileContent:%s,p.DestTerminalId:%v",
+					p.PkTotal, sendMsgId, hsm.MobileContent, p.DestTerminalId)
 				hsm.Wrapper(s)
 				s.SubmitToQueueCount++
 				if s.SubmitToQueueCount%utils.PeekInterval == 0 {
