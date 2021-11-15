@@ -93,7 +93,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				s.longMsgId = nil
 			}
 		case <-timer.C:
-			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at: %v", s.RunId, t)
+			logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
 		}
 	}
 EXIT:
