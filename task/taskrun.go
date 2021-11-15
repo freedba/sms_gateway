@@ -45,7 +45,6 @@ func ServerSupervise(sess *server.Sessions) {
 }
 
 func LoopSrvMain() {
-
 	var err error
 	models.InitDB()
 	models.InitRedis()
