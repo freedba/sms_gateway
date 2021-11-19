@@ -78,8 +78,8 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				}
 				hsm.MobileContent = strings.Join(destTerminalId, ",")
 				hsm.SendMsgId = strings.Join(sendMsgId, ",")
-				logger.Debug().Msgf("p.PkTotal:%d,sendMsgId:%s,hsm.MobileContent:%s,p.DestTerminalId:%v",
-					p.PkTotal, sendMsgId, hsm.MobileContent, p.DestTerminalId)
+				//logger.Debug().Msgf("p.PkTotal:%d,sendMsgId:%s,hsm.MobileContent:%s,p.DestTerminalId:%v",
+				//	p.PkTotal, sendMsgId, hsm.MobileContent, p.DestTerminalId)
 				hsm.Wrapper(s)
 				s.SubmitToQueueCount++
 				if s.SubmitToQueueCount%utils.PeekInterval == 0 {
@@ -94,7 +94,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				s.longMsgId = nil
 			}
 		case <-timer.C:
-			logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
+			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
 		}
 	}
 EXIT:

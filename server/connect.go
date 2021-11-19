@@ -521,7 +521,7 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	select {
 	case s.deliverRespChan <- *dr:
 	case t := <-timer.C:
-		s.Logger.Debug().Msgf("账号(%s) d写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
+		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
 	}
 	atomic.AddInt64(&s.deliverTaskCount, -1)
 }
