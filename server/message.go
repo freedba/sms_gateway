@@ -195,30 +195,21 @@ func (a arrMsgs) batchCreate(s *SrvConn) {
 		tbName2 = "yx_user_send_code_task_content_fornsqd"
 	}
 
-	t1, t2 := a.GenBatchHandle()
-	if len(t1) > 0 {
-		table := models.Table{
-			Name: tbName1,
-		}
-		if err := models.DB.Scopes(models.SetTable(table)).Create(&t1).Error; err != nil {
-			s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunId, table, err)
-			s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, table, t1)
-		}
-		//logger.Debug().Msgf("通道%v,入库成功记录：%d", t1,len(t1))
+	t1, t2 := a.BatchHandle()
+	if err := models.DB.Table(tbName1).Create(&t1).Error; err != nil {
+		s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunId, tbName1, err)
+		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, tbName1, t1)
 	}
-	if len(t2) > 0 {
-		table := models.Table{
-			Name: tbName2,
-		}
-		if err := models.DB.Scopes(models.SetTable(table)).Create(&t2).Error; err != nil {
-			s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunId, table, err)
-			s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, table, t2)
-		}
-		//logger.Debug().Msgf("通道%v,入库成功记录：%d", t2,len(t2))
+	//logger.Debug().Msgf("通道%v,入库成功记录：%d", t1,len(t1))
+	if err := models.DB.Table(tbName2).Create(&t2).Error; err != nil {
+		s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunId, tbName2, err)
+		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, tbName2, t2)
 	}
+	//logger.Debug().Msgf("通道%v,入库成功记录：%d", t2,len(t2))
+
 }
 
-func (a arrMsgs) GenBatchHandle() ([]models.Yx_user_send_task_fronsqd, []models.Yx_user_send_task_content_fornsqd) {
+func (a arrMsgs) BatchHandle() ([]models.Yx_user_send_task_fronsqd, []models.Yx_user_send_task_content_fornsqd) {
 	var t1 []models.Yx_user_send_task_fronsqd
 	var t2 []models.Yx_user_send_task_content_fornsqd
 

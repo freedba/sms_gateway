@@ -1,7 +1,9 @@
 apps/main
 apps/server
-cmd/*.exe
-apps/client
+apps/*.exe
+apps/sms_push
+apps/sms_push_todb
+apps/sms_gateway
 apps/test_producer
 test
 logs
