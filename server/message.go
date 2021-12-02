@@ -206,7 +206,6 @@ func (a arrMsgs) batchCreate(s *SrvConn) {
 		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, tbName2, t2)
 	}
 	//logger.Debug().Msgf("通道%v,入库成功记录：%d", t2,len(t2))
-
 }
 
 func (a arrMsgs) BatchHandle() ([]models.Yx_user_send_task_fronsqd, []models.Yx_user_send_task_content_fornsqd) {

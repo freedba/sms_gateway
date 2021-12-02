@@ -6,3 +6,6 @@ set GOARCH=amd64
 
 powershell命令
 $env:GOOS="linux"
+
+编译去路径
+go build -gcflags=-trimpath=$GOPATH -asmflags=-trimpath=$GOPATH -ldflags "-w -s" 

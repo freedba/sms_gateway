@@ -16,6 +16,8 @@ require (
 	sms_lib v0.0.0-00010101000000-000000000000
 )
 
+require gopkg.in/shaxbee/go-snowflake.v1 v1.0.0-20160420053823-c1334de075db
+
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
