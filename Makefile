@@ -7,4 +7,4 @@ all: deps build
 deps:
 	go mod tidy
 build:
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w' -o ${BUILD_NAME} ${SOURCE}
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -gcflags=-trimpath=$GOPATH -asmflags=-trimpath=$GOPATH -ldflags '-w -s' -o ${BUILD_NAME} ${SOURCE}
