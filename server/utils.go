@@ -14,19 +14,8 @@ func InitChan(runId string) {
 	utils.ExitSig.LoopActiveTest[runId] = make(chan bool, 1)
 	utils.ExitSig.DeliverySender[runId] = make(chan bool, 1)
 	utils.ExitSig.LoopRead[runId] = make(chan bool, 1)
-	//utils.ExitSig.LoopSend[id] = make(chan bool, 1)
-	//utils.ExitSig.SubmitRespMsgIdToQueue[id] = make(chan bool, 1)l
-	//utils.ExitSig.DeliveryMsgIdToQueue[id] = make(chan bool, 1)
-	//utils.ExitSig.SubmitRespMsgIdToDB[id] = make(chan bool, 1)
-	//utils.ExitSig.DeliveryMsgIdToDB[id] = make(chan bool, 1)
-	//utils.ExitSig.HandleCommand[id] = make(chan bool, 1)
 	utils.HbSeqId.RespSeqId[runId] = make(chan uint32, 1)
 	utils.HbSeqId.SeqId[runId] = make(chan uint32, 1)
-	//utils.NotifySig.IsTransfer[id] = make(chan bool, 1)
-	//utils.NotifySig.SendMessage[id] = make(chan bool, 1)
-	//HandleSeqId.SubmitResp[id] = make(chan protocol.SubmitResp, qlen)
-	//HandleSeqId.Deliver[id] = make(chan protocol.Deliver, qlen)
-	//HandleSeqId.Command[id] = make(chan []byte, qlen)
 }
 
 func NewSnowflakeNode() {
