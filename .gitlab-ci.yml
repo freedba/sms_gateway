@@ -61,6 +61,7 @@ Build preview docker image:
   stage: build
   before_script:
     - echo "https://mirrors.ustc.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories
+    - apk update
     - apk --no-cache add tzdata
     - cp -rf /usr/share/zoneinfo config/zoneinfo
   script:
