@@ -60,7 +60,7 @@ Build preview docker image:
     - sms
   stage: build
   before_script:
-    - echo "https://mirrors.ustc.edu.cn/alpine/latest-stable/main" > /etc/apk/repositories
+    - echo "https://mirrors.ustc.edu.cn/alpine/3.10/main" > /etc/apk/repositories
     - apk update
     - apk --no-cache add tzdata
     - cp -rf /usr/share/zoneinfo config/zoneinfo
