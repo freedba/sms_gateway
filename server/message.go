@@ -437,7 +437,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 			s.Logger.Error().Msgf("账号(%s) json.unmarshal error:%v", s.RunId, err)
 			return err
 		}
-		msgId = generateMsgID()
+		msgId = GenerateMsgID()
 		if msgId == 0 {
 			s.Logger.Error().Msgf("账号(%s) msgId generate error:", s.RunId)
 			return errors.New("msgId generate error")

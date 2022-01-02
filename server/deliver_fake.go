@@ -2,16 +2,23 @@ package server
 
 import (
 	"encoding/json"
+	"sms_lib/protocol"
 	"sms_lib/utils"
 	"strconv"
+	"strings"
 	"time"
 )
 
-func (s *SrvConn) makeDeliverMsg(msgId uint64) {
+func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*protocol.OctetString) {
 	runId := s.RunId
 	registerDelivery := 1
 	var err error
 	var b []byte
+	var mobile []string
+	for _, v := range destTerminalId {
+		mobile = append(mobile, v.String())
+	}
+	//hsm.MobileContent = strings.Join(mobile, ",")
 	if registerDelivery == 0 {
 		moMsg := MoMsgInfo{
 			Mobile:      "18432130952",
@@ -27,7 +34,7 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64) {
 	}
 	if registerDelivery == 1 {
 		deliverMsg := DeliverMsgInfo{
-			Mobile:        "18432130952",
+			Mobile:        strings.Join(mobile, ","),
 			MessageInfo:   "content",
 			SendTime:      strconv.Itoa(int(utils.GetCurrTimestamp("ms"))),
 			TaskNo:        utils.GetUuid(),

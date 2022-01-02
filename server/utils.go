@@ -30,7 +30,7 @@ func NewSnowflakeNode() {
 	}
 }
 
-func generateMsgID() uint64 {
+func GenerateMsgID() uint64 {
 	msgId := snowNode.Generate().Int64()
 	return uint64(msgId)
 }
