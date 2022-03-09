@@ -25,8 +25,7 @@ before_script:
   - cd $GOPATH/src/$REPO_NAME
   - mkdir $GOPATH/src/$REPO_NAME/etc
   - mkdir /tmp/$DEP_PROJ_NAME
-  - git config --global core.compression 0;
-    git clone --depth 1 http://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.fulongzy.com/backend/$DEP_PROJ_NAME.git /tmp/$DEP_PROJ_NAME; 
+  - git clone --depth 1 http://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.fulongzy.com/backend/$DEP_PROJ_NAME.git /tmp/$DEP_PROJ_NAME; 
     cd /tmp/$DEP_PROJ_NAME; git fetch --unshallow; git pull --all
   - ln -svf /tmp/$DEP_PROJ_NAME $CI_PROJECT_DIR/../$DEP_PROJ_NAME
   - ln -svf /tmp/$DEP_PROJ_NAME $GOPATH/src/$(dirname $REPO_NAME)/$DEP_PROJ_NAME
