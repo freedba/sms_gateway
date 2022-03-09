@@ -670,7 +670,6 @@ func (s *SrvConn) LoopActiveTest() {
 				//if !strings.Contains(err.Error(), "connection reset by peer") {
 				//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
 				//}
-				timer1 = 120
 			} else {
 				timer1 = 0
 			}
