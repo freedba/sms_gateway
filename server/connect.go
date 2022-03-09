@@ -661,10 +661,16 @@ func (s *SrvConn) LoopActiveTest() {
 			r.SeqId = recvSeqId
 			logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
 				runId, recvSeqId, timer1, timer2)
-			if err := r.IOWrite(s.rw); err != nil {
+			err := r.IOWrite(s.rw)
+			if err != nil {
 				s.Logger.Error().Msgf("账号(%s) 发送心跳应答包命令(CMPP_ACTIVE_TEST_RESP) error: %v", runId, err)
+				//if !strings.Contains(err.Error(), "connection reset by peer") {
+				//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
+				//}
+				timer1 = 120
+			} else {
+				timer1 = 0
 			}
-			timer1 = 0
 
 		case RespSeqId = <-utils.HbSeqId.RespSeqId[runId]:
 			//c.Logger.Debug().Msgf("账号(%s)接收到心跳应答包(CMPP_ACTIVE_TEST_RESP),RespSeqId: %d, timer1: %d, timer2: %d", chid, RespSeqId, timer1,timer2)
