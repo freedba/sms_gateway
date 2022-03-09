@@ -457,7 +457,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				s.Logger.Warn().Msgf("账号(%s) 收到拆除连接命令(CMPP_TERMINATE), SeqId:%d", runId, h.SeqId)
 				s.Logger.Info().Msgf("账号(%s) 发送拆除连接应答命令(CMPP_TERMINATE_RESP)", runId)
 				if err := protocol.NewTerminateResp().IOWrite(s.rw); err != nil { //拆除连接
-					s.Logger.Error().Msgf("通道(%s) CMPP_TERMINATE_RESP IOWrite: %v", runId, err)
+					s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE_RESP IOWrite: %v", runId, err)
 				}
 				goto EXIT
 
@@ -468,7 +468,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			case protocol.CMPP_SUBMIT:
 				count := atomic.AddInt64(&s.submitTaskCount, 1)
 				if int(count) > 50 {
-					s.Logger.Warn().Msgf("通道(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
+					s.Logger.Warn().Msgf("账号(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
 					time.Sleep(time.Duration(100) * time.Millisecond)
 				}
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })
@@ -484,11 +484,14 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runId, *h)
 				// time.Sleep(time.Duration(1000) * time.Nanosecond)
 			}
-		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at: %v", runId, t)
+		case <-ctx.Done():
+			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号, 退出 HandleCommand 协程....", runId)
+			goto EXIT
+		case <-timer.C:
+			s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at", runId)
 			select {
 			case <-ctx.Done():
-				s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，t:%v, 退出 HandleCommand 协程....", runId, t)
+				s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号, 退出 HandleCommand 协程....", runId)
 				goto EXIT
 			default:
 			}
