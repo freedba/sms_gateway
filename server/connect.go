@@ -449,14 +449,14 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
 				select {
 				case utils.HbSeqId.SeqId[runId] <- h.SeqId:
-				default:
+				case <-timer.C:
 				}
 
 			case protocol.CMPP_ACTIVE_TEST_RESP:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runId, h.SeqId)
 				select {
 				case utils.HbSeqId.RespSeqId[runId] <- h.SeqId:
-				default:
+				case <-timer.C:
 				}
 
 			case protocol.CMPP_TERMINATE:
