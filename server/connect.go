@@ -399,9 +399,9 @@ func (s *SrvConn) ReadLoop() {
 		case s.commandChan <- data:
 			s.invalidMessageCount = 0
 		case <-timer.C:
-			logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
+			s.Logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
 				runId, len(s.commandChan))
-			logger.Debug().Msgf("账号(%s) record Submit: %v ", runId, data)
+			s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", runId, data)
 		}
 		if s.terminateSent {
 			s.Logger.Debug().Msgf("账号(%s) 已发送过拆除连接命令，退出ReadLoop", runId)
@@ -447,11 +447,17 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			switch h.CmdId {
 			case protocol.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
-				utils.HbSeqId.SeqId[runId] <- h.SeqId
+				select {
+				case utils.HbSeqId.SeqId[runId] <- h.SeqId:
+				default:
+				}
 
 			case protocol.CMPP_ACTIVE_TEST_RESP:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runId, h.SeqId)
-				utils.HbSeqId.RespSeqId[runId] <- h.SeqId
+				select {
+				case utils.HbSeqId.RespSeqId[runId] <- h.SeqId:
+				default:
+				}
 
 			case protocol.CMPP_TERMINATE:
 				s.Logger.Warn().Msgf("账号(%s) 收到拆除连接命令(CMPP_TERMINATE), SeqId:%d", runId, h.SeqId)
@@ -670,6 +676,7 @@ func (s *SrvConn) LoopActiveTest() {
 				//if !strings.Contains(err.Error(), "connection reset by peer") {
 				//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
 				//}
+				timer1 = 120
 			} else {
 				timer1 = 0
 			}
