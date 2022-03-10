@@ -490,6 +490,9 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runId, *h)
 				// time.Sleep(time.Duration(1000) * time.Nanosecond)
 			}
+		case <-ctx.Done():
+			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号, 退出 HandleCommand 协程....", runId)
+			goto EXIT
 		case <-timer.C:
 			//s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at", runId)
 			select {
