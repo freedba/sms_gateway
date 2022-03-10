@@ -491,7 +491,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				// time.Sleep(time.Duration(1000) * time.Nanosecond)
 			}
 		case <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at", runId)
+			//s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at", runId)
 			select {
 			case <-ctx.Done():
 				s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号, 退出 HandleCommand 协程....", runId)
@@ -665,8 +665,8 @@ func (s *SrvConn) LoopActiveTest() {
 		select {
 		case recvSeqId := <-utils.HbSeqId.SeqId[runId]:
 			r.SeqId = recvSeqId
-			logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
-				runId, recvSeqId, timer1, timer2)
+			//logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
+			//	runId, recvSeqId, timer1, timer2)
 			err := r.IOWrite(s.rw)
 			if err != nil {
 				s.Logger.Error().Msgf("账号(%s) 发送心跳应答包命令(CMPP_ACTIVE_TEST_RESP) error: %v", runId, err)
@@ -674,6 +674,7 @@ func (s *SrvConn) LoopActiveTest() {
 				//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
 				//}
 				timer1 = 120
+				sendTry = 3
 			} else {
 				timer1 = 0
 			}
@@ -709,7 +710,7 @@ func (s *SrvConn) LoopActiveTest() {
 			}
 			timer2 = 0
 		}
-		if timer1 > 120 && sendTry >= retry {
+		if timer1 >= 120 && sendTry >= retry {
 			utils.ExitSig.LoopActiveTest[runId] <- true
 			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST) send try: %d and "+
 				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runId, sendTry, timer1)
