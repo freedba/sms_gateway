@@ -729,7 +729,7 @@ func (s *SrvConn) LoopActiveTest() {
 		}
 		timer1++
 		timer2++
-		time.Sleep(time.Duration(2) * time.Second)
+		time.Sleep(time.Duration(1) * time.Second)
 	}
 EXIT:
 	s.Close()
