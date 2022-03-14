@@ -397,6 +397,7 @@ func (s *SrvConn) ReadLoop() {
 			logger.Debug().Msgf("账号(%s) 收到s.exitHandleCommandChan信号，退出ReadLoop", runId)
 			goto EXIT
 		case s.commandChan <- data:
+			logger.Debug().Msgf("接收到数据")
 			s.invalidMessageCount = 0
 		case <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
@@ -472,6 +473,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				goto EXIT
 
 			case protocol.CMPP_SUBMIT:
+				logger.Debug().Msgf("收到消息提交：CMPP_SUBMIT")
 				count := atomic.AddInt64(&s.submitTaskCount, 1)
 				if int(count) > 50 {
 					s.Logger.Warn().Msgf("账号(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
@@ -544,6 +546,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	runId := s.RunId
 	resp := protocol.NewSubmitResp()
 	p := &protocol.Submit{}
+	s.Logger.Debug().Msgf("收到消息提交1111(CMPP_SUBMIT)")
 	resp.MsgId = <-msgIdChan
 	if resp.MsgId == 0 {
 		s.Logger.Error().Msgf("msgId generate error:")
@@ -560,6 +563,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		s.FlowVelocity.CurrTime = utils.GetCurrTimestamp(s.FlowVelocity.Unit)
 		s.FlowVelocity.Control() //检测是否超速
 	}
+	s.Logger.Debug().Msgf("收到消息提交22222(CMPP_SUBMIT)")
 	if s.FlowVelocity.OverSpeed {
 		s.Logger.Error().Msgf("账号(%s) s.FlowVelocity.OverSpeed:%v", runId, s.FlowVelocity.OverSpeed)
 		resp.Result = 8
@@ -577,6 +581,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		}
 	}
 
+	s.Logger.Debug().Msgf("收到消息提交33333(CMPP_SUBMIT)")
 	if resp.Result == 0 {
 		if p.TPPid > 1 {
 			s.Logger.Error().Msgf("账号(%s)  p.TPPid > 1", runId)
