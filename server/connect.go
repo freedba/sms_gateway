@@ -363,7 +363,6 @@ func (s *SrvConn) ReadLoop() {
 
 	for {
 		data, err := s.rw.ReadPacket()
-		s.Logger.Debug().Msgf("收到数据:%v", data)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				time.Sleep(time.Duration(1) * time.Second)
@@ -380,6 +379,7 @@ func (s *SrvConn) ReadLoop() {
 			}
 			goto EXIT
 		}
+		s.Logger.Debug().Msgf("收到数据:%v", data)
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
 		case <-utils.ExitSig.LoopRead[runId]:
@@ -398,6 +398,7 @@ func (s *SrvConn) ReadLoop() {
 			logger.Debug().Msgf("账号(%s) 收到s.exitHandleCommandChan信号，退出ReadLoop", runId)
 			goto EXIT
 		case s.commandChan <- data:
+			s.Logger.Debug().Msgf("数据入s.commandChan管道:%v", data)
 			s.invalidMessageCount = 0
 		case <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
