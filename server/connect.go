@@ -398,7 +398,6 @@ func (s *SrvConn) ReadLoop() {
 			logger.Debug().Msgf("账号(%s) 收到s.exitHandleCommandChan信号，退出ReadLoop", runId)
 			goto EXIT
 		case s.commandChan <- data:
-			s.Logger.Debug().Msgf("数据入s.commandChan管道:%v", data)
 			s.invalidMessageCount = 0
 		case <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
