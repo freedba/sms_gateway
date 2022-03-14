@@ -363,6 +363,7 @@ func (s *SrvConn) ReadLoop() {
 
 	for {
 		data, err := s.rw.ReadPacket()
+		s.Logger.Debug().Msgf("收到数据:%v", data)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				time.Sleep(time.Duration(1) * time.Second)
@@ -472,7 +473,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				goto EXIT
 
 			case protocol.CMPP_SUBMIT:
-				logger.Debug().Msgf("收到消息提交：CMPP_SUBMIT")
+				s.Logger.Debug().Msgf("收到消息提交：CMPP_SUBMIT")
 				count := atomic.AddInt64(&s.submitTaskCount, 1)
 				if int(count) > 50 {
 					s.Logger.Warn().Msgf("账号(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
