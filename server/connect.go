@@ -719,7 +719,7 @@ func (s *SrvConn) LoopActiveTest() {
 			}
 			timer2 = 0
 		}
-		if timer1 >= 120 && sendTry >= retry {
+		if timer1 >= 60 && sendTry >= retry {
 			utils.ExitSig.LoopActiveTest[runId] <- true
 			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST) send try: %d and "+
 				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runId, sendTry, timer1)
@@ -728,7 +728,6 @@ func (s *SrvConn) LoopActiveTest() {
 		}
 		timer1++
 		timer2++
-		//time.Sleep(time.Duration(1) * time.Second)
 	}
 EXIT:
 	s.Close()
