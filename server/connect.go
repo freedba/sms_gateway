@@ -381,6 +381,7 @@ func (s *SrvConn) ReadLoop() {
 		}
 		s.Logger.Debug().Msgf("收到数据:%v", data)
 		utils.ResetTimer(timer, utils.Timeout)
+		s.Logger.Debug().Msgf("收到数据reset timer:%v", data)
 		select {
 		case <-utils.ExitSig.LoopRead[runId]:
 			logger.Debug().Msgf("账号(%s) 收到utils.ExitSig.LoopRead信号，即将退出ReadLoop", runId)
