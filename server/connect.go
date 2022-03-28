@@ -92,8 +92,8 @@ func Listen(sess *Sessions) {
 		clientConn, err := ln.Accept()
 		if err != nil {
 			logger.Error().Msgf("error Listen Accept: %v", err.Error())
-			if nErr, ok := err.(net.Error); ok && nErr.Temporary() {
-				logger.Error().Msgf("NOTICE: temporary Accept() failure - %s", err)
+			if nErr, ok := err.(net.Error); ok && nErr.Timeout() {
+				logger.Error().Msgf("NOTICE: Timeout Accept() failure - %s", err)
 				runtime.Gosched()
 				continue
 			}
