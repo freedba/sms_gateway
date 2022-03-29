@@ -2,7 +2,7 @@
 # https://docs.gitlab.com/ee/development/cicd/templates.html
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Go.gitlab-ci.yml
-# ver:20211017011
+# ver:202110170111
 
 image: golang:1.17.2
 
