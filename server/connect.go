@@ -58,6 +58,7 @@ type SrvConn struct {
 	SubmitToQueueCount  int
 	DeliverSendCount    int
 	FlowVelocity        *utils.FlowVelocity
+	RateLimit           *utils.RateLimit
 	invalidMessageCount uint32
 	submitTaskCount     int64
 	deliverTaskCount    int64
@@ -422,22 +423,25 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 	runId := s.RunId
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
-	var unit = "ns"
+	//var unit = "ns"
 
 	if s.Account.ConnFlowVelocity == 0 {
 		s.Account.ConnFlowVelocity = 300
 	}
 
-	var flowVelocity = &utils.FlowVelocity{
-		CurrTime: utils.GetCurrTimestamp(unit),
-		LastTime: utils.GetCurrTimestamp(unit),
-		Rate:     s.Account.ConnFlowVelocity, //流速控制
-		Unit:     unit,
-		Duration: 1000000000, //纳秒
-		RunMode:  runMode,
-		RunId:    runId,
-	}
-	s.FlowVelocity = flowVelocity
+	//var flowVelocity = &utils.FlowVelocity{
+	//	CurrTime: utils.GetCurrTimestamp(unit),
+	//	LastTime: utils.GetCurrTimestamp(unit),
+	//	Rate:     s.Account.ConnFlowVelocity, //流速控制
+	//	Unit:     unit,
+	//	Duration: 1000000000, //纳秒
+	//	RunMode:  runMode,
+	//	RunId:    runId,
+	//}
+	//s.FlowVelocity = flowVelocity
+	var rateLimit = utils.NewRateLimit(s.Account.ConnFlowVelocity, runId, runMode)
+	s.RateLimit = rateLimit
+
 	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runId)
 	h := &protocol.Header{}
 	for {
@@ -557,12 +561,13 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 	resp.SeqId = h.SeqId
 	count = atomic.AddUint64(&s.count, 1)
-	if count%uint64(s.FlowVelocity.Rate) == 0 {
-		s.FlowVelocity.CurrTime = utils.GetCurrTimestamp(s.FlowVelocity.Unit)
-		s.FlowVelocity.Control() //检测是否超速
-	}
+	//if count%uint64(s.FlowVelocity.Rate) == 0 {
+	//	s.FlowVelocity.CurrTime = utils.GetCurrTimestamp(s.FlowVelocity.Unit)
+	//	s.FlowVelocity.Control() //检测是否超速
+	//}
 
-	if s.FlowVelocity.OverSpeed {
+	//if s.FlowVelocity.OverSpeed {
+	if !s.RateLimit.Available() {
 		s.Logger.Error().Msgf("账号(%s) s.FlowVelocity.OverSpeed:%v", runId, s.FlowVelocity.OverSpeed)
 		resp.Result = 8
 	} else if len(buf)+12 != int(h.TotalLen) {
