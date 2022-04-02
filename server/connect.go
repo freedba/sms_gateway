@@ -566,9 +566,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	//	s.FlowVelocity.Control() //检测是否超速
 	//}
 
-	//if s.FlowVelocity.OverSpeed {
 	if !s.RateLimit.Available() {
-		s.Logger.Error().Msgf("账号(%s) s.FlowVelocity.OverSpeed:%v", runId, s.FlowVelocity.OverSpeed)
+		s.Logger.Error().Msgf("账号(%s) OverSpeed:%v", runId)
 		resp.Result = 8
 	} else if len(buf)+12 != int(h.TotalLen) {
 		s.Logger.Error().Msgf("账号(%s) buf len:%d + 12 != h.TotalLen:%d", runId, len(buf), h.TotalLen)
