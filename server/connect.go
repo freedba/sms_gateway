@@ -567,7 +567,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	//}
 
 	if !s.RateLimit.Available() {
-		s.Logger.Error().Msgf("账号(%s) OverSpeed", runId)
+		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.FlowVelocity.Rate)
 		resp.Result = 8
 	} else if len(buf)+12 != int(h.TotalLen) {
 		s.Logger.Error().Msgf("账号(%s) buf len:%d + 12 != h.TotalLen:%d", runId, len(buf), h.TotalLen)
