@@ -13,7 +13,9 @@ import (
 	"sms_lib/config"
 	"sms_lib/levellogger"
 	"sms_lib/models"
-	"sms_lib/protocol"
+	"sms_lib/protocol/cmpp"
+	"sms_lib/protocol/common"
+	"sms_lib/protocol/socket"
 	"sms_lib/utils"
 	"strconv"
 	"strings"
@@ -30,7 +32,7 @@ type SrvConn struct {
 
 	RunId     string
 	Logger    *levellogger.Logger
-	rw        *protocol.PacketRW
+	rw        *socket.PacketRW
 	waitGroup utils.WaitGroupWrapper
 
 	exitHandleCommandChan chan struct{}
@@ -49,8 +51,8 @@ type SrvConn struct {
 
 	hsmChan         chan HttpSubmitMessageInfo
 	mapKeyInChan    chan string
-	SubmitChan      chan protocol.Submit
-	deliverRespChan chan protocol.DeliverResp
+	SubmitChan      chan cmpp.Submit
+	deliverRespChan chan cmpp.DeliverResp
 	commandChan     chan []byte
 	deliverFakeChan chan []byte
 
@@ -115,7 +117,7 @@ func Listen(sess *Sessions) {
 }
 
 func HandleNewConn(conn net.Conn, sess *Sessions) {
-	var resp *protocol.ConnResp
+	var resp *cmpp.ConnResp
 	var err error
 	var runId string
 	var data []byte
@@ -127,20 +129,20 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s := &SrvConn{
 		conn:                  conn,
 		RemoteAddr:            sess.RemoteAddr,
-		SubmitChan:            make(chan protocol.Submit, qLen),
+		SubmitChan:            make(chan cmpp.Submit, qLen),
 		commandChan:           make(chan []byte, qLen),
 		hsmChan:               make(chan HttpSubmitMessageInfo, qLen),
-		deliverRespChan:       make(chan protocol.DeliverResp, qLen),
+		deliverRespChan:       make(chan cmpp.DeliverResp, qLen),
 		mapKeyInChan:          make(chan string, qLen),
 		exitHandleCommandChan: make(chan struct{}),
 		deliverMsgMap:         cmap.New(),
 		deliverResendCountMap: cmap.New(),
-		rw:                    protocol.NewPacketRW(conn),
+		rw:                    socket.NewPacketRW(conn),
 	}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)
 	}
-	h := &protocol.Header{}
+	h := &cmpp.Header{}
 
 	s.rw.ReadTimeout = 10
 	data, err = s.rw.ReadPacket()
@@ -151,7 +153,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.rw.Reset("r")
 
 	h.UnPack(data[:12])
-	if h.CmdId != protocol.CMPP_CONNECT {
+	if h.CmdId != common.CMPP_CONNECT {
 		logger.Debug().Msgf("CmdId is not CMPP_CONNECT: %v", h)
 		goto EXIT
 	}
@@ -195,32 +197,32 @@ EXIT:
 	logger.Debug().Msgf("socket %v, Exiting HandleNewConn...", s.conn)
 }
 
-func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error) {
+func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 	var err error
 
-	req := &protocol.ConnReq{}
+	req := &cmpp.ConnReq{}
 	req.UnPack(buf)
 
-	resp := protocol.NewConnResp()
+	resp := cmpp.NewConnResp()
 	resp.SeqId = req.SeqId
-	resp.TotalLen = protocol.HeaderLen + 1 + 16 + 1
+	resp.TotalLen = common.HeaderLen + 1 + 16 + 1
 	resp.Status = 0
 	sourceAddr := req.SourceAddr
 	user := sourceAddr.String()
 
 	if len(buf) != 27 {
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectInvalidStruct]
 		logger.Error().Msgf("len(buf) != 27 error:%v", err)
-		resp.Status = protocol.ErrnoConnectInvalidStruct
+		resp.Status = common.ErrnoConnectInvalidStruct
 		return nil, err
 	}
 
 	rKey := "index:user:userinfo:"
 	str := models.RedisHGet(rKey, user)
 	if str == "" {
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
 		logger.Error().Msgf("账号(%s) 不存在, error:%v", user, err)
-		resp.Status = protocol.ErrnoConnectAuthFaild
+		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
@@ -229,8 +231,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	err = json.Unmarshal([]byte(str), &account)
 	if err != nil {
 		logger.Error().Msgf("accounts json.unmarshal error:%v, exit...", err)
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidStruct]
-		resp.Status = protocol.ErrnoConnectInvalidStruct
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectInvalidStruct]
+		resp.Status = common.ErrnoConnectInvalidStruct
 		return resp, err
 	}
 	if account.ConnFlowVelocity == 0 {
@@ -243,7 +245,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	//if ok && len(isLogin) == 5 {
 	if currConns+1 > maxConns {
 		logger.Error().Msgf("账号(%s) 当前建立的连接数已达最大允许连接数:%d", user, maxConns)
-		resp.Status = protocol.ErrnoConnectAuthFaild
+		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
@@ -251,16 +253,16 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	whiteList := strings.Split(account.AccountHost, ",")
 	if !collection.Collect(whiteList).Contains(sess.RemoteAddr) {
 		logger.Error().Msgf("账号(%s) 登录ip地址(%s)非法!", sourceAddr.String(), sess.RemoteAddr)
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectInvalidSrcAddr]
-		resp.Status = protocol.ErrnoConnectInvalidSrcAddr
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectInvalidSrcAddr]
+		resp.Status = common.ErrnoConnectInvalidSrcAddr
 		return resp, err
 	}
 
-	authSrc, err := protocol.GenAuthSrc(req.SourceAddr.String(), account.CmppPassword, req.Timestamp)
+	authSrc, err := common.GenAuthSrc(req.SourceAddr.String(), account.CmppPassword, req.Timestamp)
 	if err != nil {
 		logger.Error().Msgf("通道(%s) 生成authSrc信息错误：%v", sourceAddr.String(), err, authSrc)
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
-		resp.Status = protocol.ErrnoConnectAuthFaild
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
+		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
@@ -268,20 +270,20 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*protocol.ConnResp, error
 	if !bytes.Equal(authSrc, reqAuthSrc) {
 		logger.Error().Msgf("账号(%s) auth failed", sourceAddr.String())
 		logger.Error().Msgf("authSrc: %v, req.AuthSrc: %v", authSrc, reqAuthSrc)
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
-		resp.Status = protocol.ErrnoConnectAuthFaild
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
+		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
-	authImsg, err := protocol.GenRespAuthSrc(resp.Status, string(authSrc), account.CmppPassword)
+	authImsg, err := common.GenRespAuthSrc(resp.Status, string(authSrc), account.CmppPassword)
 	if err != nil {
 		logger.Debug().Msgf("通道(%s) 生成authImsg信息错误：%v", sourceAddr.String(), err, authImsg)
-		err = protocol.ConnectRspResultErrMap[protocol.ErrnoConnectAuthFaild]
-		resp.Status = protocol.ErrnoConnectAuthFaild
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
+		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
 	}
 
-	resp.AuthIsmg = &protocol.OctetString{
+	resp.AuthIsmg = &common.OctetString{
 		Data:     authImsg,
 		FixedLen: 16,
 	}
@@ -354,7 +356,7 @@ func (s *SrvConn) loopMakeMsgId(ctx context.Context) {
 
 func (s *SrvConn) ReadLoop() {
 	atomic.StoreInt32(&s.ReadLoopRunning, 1)
-	t := protocol.NewTerminate()
+	t := cmpp.NewTerminate()
 	timer := time.NewTimer(utils.Timeout)
 	runId := s.RunId
 	ctx, cancel := context.WithCancel(context.Background())
@@ -443,40 +445,40 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 	s.RateLimit = rateLimit
 
 	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runId)
-	h := &protocol.Header{}
+	h := &cmpp.Header{}
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
 		case data := <-s.commandChan:
-			h.UnPack(data[:protocol.HeaderLen])
+			h.UnPack(data[:common.HeaderLen])
 			switch h.CmdId {
-			case protocol.CMPP_ACTIVE_TEST:
+			case common.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
 				select {
 				case utils.HbSeqId.SeqId[runId] <- h.SeqId:
 				case <-timer.C:
 				}
 
-			case protocol.CMPP_ACTIVE_TEST_RESP:
+			case common.CMPP_ACTIVE_TEST_RESP:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runId, h.SeqId)
 				select {
 				case utils.HbSeqId.RespSeqId[runId] <- h.SeqId:
 				case <-timer.C:
 				}
 
-			case protocol.CMPP_TERMINATE:
+			case common.CMPP_TERMINATE:
 				s.Logger.Warn().Msgf("账号(%s) 收到拆除连接命令(CMPP_TERMINATE), SeqId:%d", runId, h.SeqId)
 				s.Logger.Info().Msgf("账号(%s) 发送拆除连接应答命令(CMPP_TERMINATE_RESP)", runId)
-				if err := protocol.NewTerminateResp().IOWrite(s.rw); err != nil { //拆除连接
+				if err := cmpp.NewTerminateResp().IOWrite(s.rw); err != nil { //拆除连接
 					s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE_RESP IOWrite: %v", runId, err)
 				}
 				goto EXIT
 
-			case protocol.CMPP_TERMINATE_RESP:
+			case common.CMPP_TERMINATE_RESP:
 				s.Logger.Debug().Msgf("账号(%s) 收到拆除连接应答命令(CMPP_TERMINATE_RESP), SeqId", runId, h.SeqId)
 				goto EXIT
 
-			case protocol.CMPP_SUBMIT:
+			case common.CMPP_SUBMIT:
 				count := atomic.AddInt64(&s.submitTaskCount, 1)
 				if int(count) > 50 {
 					s.Logger.Warn().Msgf("账号(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
@@ -484,7 +486,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				}
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })
 
-			case protocol.CMPP_DELIVER_RESP:
+			case common.CMPP_DELIVER_RESP:
 				atomic.AddInt64(&s.deliverTaskCount, 1)
 				//if int(count) > config.GetQlen() {
 				//	s.Logger.Warn().Msgf("通道(%s) 当前deliver任务数:%d",runId,count)
@@ -519,11 +521,11 @@ EXIT:
 }
 
 func (s *SrvConn) handleDeliverResp(data []byte) {
-	h := &protocol.Header{}
-	h.UnPack(data[:protocol.HeaderLen])
-	buf := data[protocol.HeaderLen:]
+	h := &cmpp.Header{}
+	h.UnPack(data[:common.HeaderLen])
+	buf := data[common.HeaderLen:]
 	runId := s.RunId
-	dr := &protocol.DeliverResp{}
+	dr := &cmpp.DeliverResp{}
 	dr.UnPack(buf)
 	dr.SeqId = h.SeqId
 	if dr.Result != 0 {
@@ -543,17 +545,17 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 func (s *SrvConn) handleSubmit(data []byte) {
 	var count uint64
 	var err error
-	h := &protocol.Header{}
-	h.UnPack(data[:protocol.HeaderLen])
-	buf := data[protocol.HeaderLen:]
+	h := &cmpp.Header{}
+	h.UnPack(data[:common.HeaderLen])
+	buf := data[common.HeaderLen:]
 	runId := s.RunId
-	resp := protocol.NewSubmitResp()
-	p := &protocol.Submit{}
+	resp := cmpp.NewSubmitResp()
+	p := &cmpp.Submit{}
 	resp.MsgId = <-msgIdChan
 	if resp.MsgId == 0 {
 		s.Logger.Error().Msgf("msgId generate error:")
 		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)
-		if err := protocol.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
+		if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 			s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE IOWrite: %v", runId, err)
 		}
 		time.Sleep(time.Duration(1) * time.Second)
@@ -571,15 +573,15 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		resp.Result = 8
 	} else if len(buf)+12 != int(h.TotalLen) {
 		s.Logger.Error().Msgf("账号(%s) buf len:%d + 12 != h.TotalLen:%d", runId, len(buf), h.TotalLen)
-		resp.Result = protocol.ErrnoSubmitInvalidMsgLength
+		resp.Result = common.ErrnoSubmitInvalidMsgLength
 	} else if s.LastSeqId == h.SeqId && s.LastSeqId != 0 {
 		s.Logger.Error().Msgf("账号(%s) s.LastSeqId(%d) == h.SeqId(%d) && s.LastSeqId != 0",
 			runId, s.LastSeqId, h.SeqId)
-		resp.Result = protocol.ErrnoSubmitInvalidSequence
+		resp.Result = common.ErrnoSubmitInvalidSequence
 	} else {
 		if err := p.UnPack(buf); err != nil {
 			s.Logger.Error().Msgf("账号(%s) p.UnPack(buf) error:%v", runId, err)
-			resp.Result = protocol.ErrnoSubmitInvalidStruct
+			resp.Result = common.ErrnoSubmitInvalidStruct
 		}
 	}
 
@@ -617,11 +619,11 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			}
 		}
 	} else {
-		if resp.Result == protocol.ErrnoSubmitInvalidMsgLength ||
-			resp.Result == protocol.ErrnoSubmitInvalidSequence ||
-			resp.Result == protocol.ErrnoSubmitInvalidStruct {
+		if resp.Result == common.ErrnoSubmitInvalidMsgLength ||
+			resp.Result == common.ErrnoSubmitInvalidSequence ||
+			resp.Result == common.ErrnoSubmitInvalidStruct {
 			s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
-			if err := protocol.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
+			if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
 			}
 			time.Sleep(time.Duration(1) * time.Second)
@@ -643,10 +645,10 @@ func (s *SrvConn) LoopActiveTest() {
 	//间 T 后未收到响应，应立即再发送链路检测包，再连续发送 N-1 次后仍未得到响应则断开
 	//此连接
 	// c=60s, t=10, n=3
-	var length = protocol.HeaderLen // header length
-	var timer1 = 0                  // 对端发送CMPP_ACTIVE_TEST超时计时
-	var timer2 = 0                  // 对端发送CMPP_ACTIVE_TEST_RESP超时计时
-	var sendTry = 0                 //发送CMPP_ACTIVE_TEST到对端尝试次数，max=3
+	var length = common.HeaderLen // header length
+	var timer1 = 0                // 对端发送CMPP_ACTIVE_TEST超时计时
+	var timer2 = 0                // 对端发送CMPP_ACTIVE_TEST_RESP超时计时
+	var sendTry = 0               //发送CMPP_ACTIVE_TEST到对端尝试次数，max=3
 
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
@@ -658,15 +660,13 @@ func (s *SrvConn) LoopActiveTest() {
 	delay := hbTime.Delay
 	retry := hbTime.Retry
 
-	r := &protocol.ActiveTestResp{}
-	r.Header = &protocol.Header{}
+	r := &cmpp.ActiveTestResp{}
 	r.TotalLen = length + 1
-	r.CmdId = protocol.CMPP_ACTIVE_TEST_RESP
+	r.CmdId = common.CMPP_ACTIVE_TEST_RESP
 
-	p := &protocol.ActiveTest{}
-	p.Header = &protocol.Header{}
+	p := &cmpp.ActiveTest{}
 	p.TotalLen = length
-	p.CmdId = protocol.CMPP_ACTIVE_TEST
+	p.CmdId = common.CMPP_ACTIVE_TEST
 	p.SeqId = atomic.LoadUint32(&s.SeqId)
 	RespSeqId := p.SeqId
 	s.Logger.Debug().Msgf("账号(%s) 启动心跳协程 LoopActiveTest", runId)

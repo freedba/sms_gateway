@@ -2,14 +2,14 @@ package server
 
 import (
 	"encoding/json"
-	"sms_lib/protocol"
+	"sms_lib/protocol/common"
 	"sms_lib/utils"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*protocol.OctetString) {
+func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*common.OctetString) {
 	runId := s.RunId
 	registerDelivery := 1
 	var err error

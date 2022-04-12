@@ -8,7 +8,8 @@ import (
 	"math"
 	"sms_lib/config"
 	"sms_lib/models"
-	"sms_lib/protocol"
+	"sms_lib/protocol/cmpp"
+	"sms_lib/protocol/common"
 	"sms_lib/utils"
 	"strconv"
 	"strings"
@@ -426,9 +427,9 @@ func (snd *deliverSender) cleanChan(msg chan nsq.Message) {
 
 func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 	s := snd.s
-	dm := &protocol.DeliverMsg{}
+	dm := &cmpp.DeliverMsg{}
 	var msgId uint64
-	var destId, srcTerminalId *protocol.OctetString
+	var destId, srcTerminalId *common.OctetString
 	var content []byte
 	if registerDelivery == 0 { //上行
 		p := &MoMsgInfo{}
@@ -443,8 +444,8 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 			return errors.New("msgId generate error")
 		}
 		content = utils.Utf8ToUcs2([]byte(p.MessageInfo))
-		destId = &protocol.OctetString{Data: []byte(s.Account.CmppDestId + p.DevelopNo), FixedLen: 21}
-		srcTerminalId = &protocol.OctetString{Data: []byte(p.Mobile), FixedLen: 21}
+		destId = &common.OctetString{Data: []byte(s.Account.CmppDestId + p.DevelopNo), FixedLen: 21}
+		srcTerminalId = &common.OctetString{Data: []byte(p.Mobile), FixedLen: 21}
 	} else if registerDelivery == 1 { // 回执状态报告
 		dmi := &DeliverMsgInfo{}
 		//dmi := snd.deliverMsgInfoPool.Get().(*DeliverMsgInfo)
@@ -457,24 +458,24 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		msgId, _ = strconv.ParseUint(dmi.MsgId, 10, 64)
 
 		dm.MsgId = msgId
-		dm.Stat = &protocol.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
-		dm.DestTerminalId = &protocol.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
-		dm.SubmitTime = &protocol.OctetString{Data: []byte(dmi.SendTime), FixedLen: 10}
-		dm.DoneTime = &protocol.OctetString{Data: []byte(dmi.SendTime), FixedLen: 10}
+		dm.Stat = &common.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
+		dm.DestTerminalId = &common.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
+		dm.SubmitTime = &common.OctetString{Data: []byte(dmi.SendTime), FixedLen: 10}
+		dm.DoneTime = &common.OctetString{Data: []byte(dmi.SendTime), FixedLen: 10}
 		dm.SmscSequence = 0
 
-		destId = &protocol.OctetString{Data: []byte(s.Account.CmppJoinDestId), FixedLen: 21}
-		srcTerminalId = &protocol.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
+		destId = &common.OctetString{Data: []byte(s.Account.CmppJoinDestId), FixedLen: 21}
+		srcTerminalId = &common.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
 		content = dm.Serialize()
 		//snd.moMsgInfoPool.Put(dmi)
 	} else {
 		s.Logger.Debug().Msgf("registerDelivery error: %d", registerDelivery)
 		return nil
 	}
-	d := &protocol.Deliver{}
+	d := &cmpp.Deliver{}
 	d.MsgId = msgId
 	d.DestId = destId
-	d.ServiceId = &protocol.OctetString{Data: []byte(s.Account.NickName), FixedLen: 10}
+	d.ServiceId = &common.OctetString{Data: []byte(s.Account.NickName), FixedLen: 10}
 	d.TPPid = 1
 	d.TPUdhi = 0
 	d.MsgFmt = 8
@@ -483,10 +484,10 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 	tLen := len(content)
 	d.MsgLength = uint8(tLen)
 	d.MsgContent = content
-	d.Reserve = &protocol.OctetString{Data: []byte(""), FixedLen: 8}
+	d.Reserve = &common.OctetString{Data: []byte(""), FixedLen: 8}
 	newSeqId := atomic.AddUint32(&SeqId, 1)
 	d.SeqId = newSeqId
-	d.CmdId = protocol.CMPP_DELIVER
+	d.CmdId = common.CMPP_DELIVER
 	d.TotalLen = 12 + 8 + 21 + 10 + 1 + 1 + 1 + 21 + 1 + 1 + uint32(tLen) + 8
 
 	mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(newSeqId))
@@ -520,9 +521,9 @@ func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
 			if resp.Result != 0 {
 				s.Logger.Error().Msgf("账号(%s) deliver Resp.Result(%d) != 0,resp: %v", s.RunId, resp.Result, resp)
 				var count int
-				var d protocol.Deliver
+				var d cmpp.Deliver
 				if tmp, ok := s.deliverMsgMap.Get(mapKey); ok {
-					d = tmp.(protocol.Deliver)
+					d = tmp.(cmpp.Deliver)
 					if tmp, ok := s.deliverResendCountMap.Get(mapKey); ok {
 						count = tmp.(int)
 						count++
