@@ -53,7 +53,7 @@ func LoopSrvMain() {
 	if server.FakeGateway == 1 {
 		logger.Info().Msgf("当前运行模拟网关模式")
 	}
-	levellogger.Llogger = levellogger.NewLogger("")
+	levellogger.LLogger = levellogger.NewLogger("")
 	server.NewSnowflakeNode()
 	server.SeqId = server.InitSeqId()
 	// init etcd

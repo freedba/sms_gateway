@@ -7,7 +7,7 @@ import (
 	"sms_lib/utils"
 )
 
-var logger = levellogger.Llogger
+var logger = levellogger.LLogger
 
 func init() {
 	type Empty struct{}
