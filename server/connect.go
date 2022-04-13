@@ -205,7 +205,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 
 	resp := cmpp.NewConnResp()
 	resp.SeqId = req.SeqId
-	resp.TotalLen = common.HeaderLen + 1 + 16 + 1
+	resp.TotalLen = common.CMPP_HEADER_SIZE + 1 + 16 + 1
 	resp.Status = 0
 	sourceAddr := req.SourceAddr
 	user := sourceAddr.String()
@@ -258,7 +258,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 		return resp, err
 	}
 
-	authSrc, err := common.GenAuthSrc(req.SourceAddr.String(), account.CmppPassword, req.Timestamp)
+	authSrc, err := common.GenAuthSrc(req.SourceAddr.String(), account.CmppPassword, req.Timestamp, 9)
 	if err != nil {
 		logger.Error().Msgf("通道(%s) 生成authSrc信息错误：%v", sourceAddr.String(), err, authSrc)
 		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
@@ -450,7 +450,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
 		case data := <-s.commandChan:
-			h.UnPack(data[:common.HeaderLen])
+			h.UnPack(data[:common.CMPP_HEADER_SIZE])
 			switch h.CmdId {
 			case common.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
@@ -522,8 +522,8 @@ EXIT:
 
 func (s *SrvConn) handleDeliverResp(data []byte) {
 	h := &cmpp.Header{}
-	h.UnPack(data[:common.HeaderLen])
-	buf := data[common.HeaderLen:]
+	h.UnPack(data[:common.CMPP_HEADER_SIZE])
+	buf := data[common.CMPP_HEADER_SIZE:]
 	runId := s.RunId
 	dr := &cmpp.DeliverResp{}
 	dr.UnPack(buf)
@@ -546,8 +546,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	var count uint64
 	var err error
 	h := &cmpp.Header{}
-	h.UnPack(data[:common.HeaderLen])
-	buf := data[common.HeaderLen:]
+	h.UnPack(data[:common.CMPP_HEADER_SIZE])
+	buf := data[common.CMPP_HEADER_SIZE:]
 	runId := s.RunId
 	resp := cmpp.NewSubmitResp()
 	p := &cmpp.Submit{}
@@ -645,10 +645,10 @@ func (s *SrvConn) LoopActiveTest() {
 	//间 T 后未收到响应，应立即再发送链路检测包，再连续发送 N-1 次后仍未得到响应则断开
 	//此连接
 	// c=60s, t=10, n=3
-	var length = common.HeaderLen // header length
-	var timer1 = 0                // 对端发送CMPP_ACTIVE_TEST超时计时
-	var timer2 = 0                // 对端发送CMPP_ACTIVE_TEST_RESP超时计时
-	var sendTry = 0               //发送CMPP_ACTIVE_TEST到对端尝试次数，max=3
+	var length = uint32(common.CMPP_HEADER_SIZE) // header length
+	var timer1 = 0                               // 对端发送CMPP_ACTIVE_TEST超时计时
+	var timer2 = 0                               // 对端发送CMPP_ACTIVE_TEST_RESP超时计时
+	var sendTry = 0                              //发送CMPP_ACTIVE_TEST到对端尝试次数，max=3
 
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
