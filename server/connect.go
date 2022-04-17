@@ -25,45 +25,47 @@ import (
 )
 
 type SrvConn struct {
-	conn       net.Conn
+	conn          net.Conn
+	Account       AccountsInfo
+	Logger        *levellogger.Logger
+	rw            *socket.PacketRW
+	waitGroup     utils.WaitGroupWrapper
+	terminateSent bool
+
 	addr       string
 	RemoteAddr string
-	Account    AccountsInfo
+	RunId      string
 
-	RunId     string
-	Logger    *levellogger.Logger
-	rw        *socket.PacketRW
-	waitGroup utils.WaitGroupWrapper
+	ReadLoopRunning   int32
+	deliverSenderExit int32
+	CloseFlag         int32
 
-	exitHandleCommandChan chan struct{}
-	ReadLoopRunning       int32
-	deliverSenderExit     int32
-	CloseFlag             int32
-	terminateSent         bool
+	longSms   map[uint8]map[uint8][]byte
+	longMsgId map[uint8][]string
 
-	MsgId                 uint64
-	SeqId                 uint32
-	LastSeqId             uint32
-	longSms               map[uint8]map[uint8][]byte
-	longMsgId             map[uint8][]string
 	deliverMsgMap         cmap.ConcurrentMap
 	deliverResendCountMap cmap.ConcurrentMap
 
-	hsmChan         chan HttpSubmitMessageInfo
-	mapKeyInChan    chan string
-	SubmitChan      chan cmpp.Submit
-	deliverRespChan chan cmpp.DeliverResp
-	commandChan     chan []byte
-	deliverFakeChan chan []byte
+	exitHandleCommandChan chan struct{}
+	hsmChan               chan HttpSubmitMessageInfo
+	mapKeyInChan          chan string
+	SubmitChan            chan cmpp.Submit
+	deliverRespChan       chan cmpp.DeliverResp
+	commandChan           chan []byte
+	deliverFakeChan       chan []byte
 
-	count               uint64
+	FlowVelocity *utils.FlowVelocity
+	RateLimit    *utils.RateLimit
+
 	SubmitToQueueCount  int
 	DeliverSendCount    int
-	FlowVelocity        *utils.FlowVelocity
-	RateLimit           *utils.RateLimit
+	SeqId               uint32
+	LastSeqId           uint32
 	invalidMessageCount uint32
 	submitTaskCount     int64
 	deliverTaskCount    int64
+	MsgId               uint64
+	count               uint64
 }
 
 func Listen(sess *Sessions) {
