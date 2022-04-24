@@ -401,8 +401,8 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		}
 	}
 EXIT:
-	close(deliverNmc.Stop)
-	close(moNmc.Stop)
+	deliverNmc.Consumer.Stop()
+	moNmc.Consumer.Stop()
 
 	s.Logger.Debug().Msgf("账号(%s) Exiting deliverMsg", s.RunId)
 	return
