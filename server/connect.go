@@ -459,10 +459,10 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			switch h.CmdId {
 			case common.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
-				select {
-				case utils.HbSeqId.SeqId[runId] <- h.SeqId:
-				case <-timer.C:
-				}
+				//select {
+				//case utils.HbSeqId.SeqId[runId] <- h.SeqId:
+				//case <-timer.C:
+				//}
 				if err := r.IOWrite(s.rw); err != nil {
 					if !utils.ChIsClosed(s.exitHandleCommandChan) {
 						close(s.exitHandleCommandChan)
