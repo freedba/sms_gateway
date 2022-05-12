@@ -726,6 +726,7 @@ func (s *SrvConn) LoopActiveTest() {
 				timer1 = tick + 1
 				sendTry = 3
 			}
+			sendTry++
 		}
 		if timer1 > tick && sendTry >= retry {
 			utils.ExitSig.LoopActiveTest[runId] <- true
