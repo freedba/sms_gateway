@@ -674,7 +674,6 @@ func (s *SrvConn) LoopActiveTest() {
 
 	p := cmpp.NewActiveTest()
 	p.SeqId = atomic.LoadUint32(&s.SeqId)
-	respSeqId := p.SeqId
 	s.Logger.Debug().Msgf("账号(%s) 启动心跳协程 LoopActiveTest", runId)
 	for {
 		if atomic.LoadInt32(&s.ReadLoopRunning) == 0 {
@@ -698,7 +697,7 @@ func (s *SrvConn) LoopActiveTest() {
 		//		timer1 = 0
 		//	}
 
-		case respSeqId = <-utils.HbSeqId.RespSeqId[runId]:
+		case <-utils.HbSeqId.RespSeqId[runId]:
 			//c.Logger.Debug().Msgf("账号(%s)接收到心跳应答包(CMPP_ACTIVE_TEST_RESP),RespSeqId: %d, timer1: %d, timer2: %d", chid, RespSeqId, timer1,timer2)
 			sendTry = 0
 
