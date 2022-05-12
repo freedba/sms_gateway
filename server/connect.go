@@ -456,6 +456,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		select {
 		case data := <-s.commandChan:
 			h.UnPack(data[:common.CMPP_HEADER_SIZE])
+			s.Logger.Debug().Msgf("cmdid:%x", h.CmdId)
 			switch h.CmdId {
 			case common.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
