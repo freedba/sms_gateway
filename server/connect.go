@@ -62,6 +62,7 @@ type SrvConn struct {
 	SeqId               uint32
 	LastSeqId           uint32
 	invalidMessageCount uint32
+	activeTestCount     uint32
 	submitTaskCount     int64
 	deliverTaskCount    int64
 	MsgId               uint64
@@ -448,6 +449,8 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 
 	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runId)
 	h := &cmpp.Header{}
+	r := cmpp.NewActiveTestResp()
+
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
@@ -460,7 +463,12 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				case utils.HbSeqId.SeqId[runId] <- h.SeqId:
 				case <-timer.C:
 				}
-
+				if err := r.IOWrite(s.rw); err != nil {
+					if !utils.ChIsClosed(s.exitHandleCommandChan) {
+						close(s.exitHandleCommandChan)
+					}
+				}
+				atomic.StoreUint32(&s.activeTestCount, 0)
 			case common.CMPP_ACTIVE_TEST_RESP:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runId, h.SeqId)
 				select {
@@ -658,21 +666,15 @@ func (s *SrvConn) LoopActiveTest() {
 	runId := s.RunId
 	hbTime := config.GetHBTime()
 	timeout := hbTime.Timeout
-	delay := hbTime.Delay
 	retry := hbTime.Retry
 	tick := int(time.Duration(timeout) * time.Second / utils.Timeout)
-	tickDelay := int(time.Duration(delay) * time.Second / utils.Timeout)
 	if tick == 0 {
 		tick = 1
 	}
-	if tickDelay == 0 {
-		tickDelay = 1
-	}
 
-	r := cmpp.NewActiveTestResp()
 	p := cmpp.NewActiveTest()
 	p.SeqId = atomic.LoadUint32(&s.SeqId)
-	RespSeqId := p.SeqId
+	respSeqId := p.SeqId
 	s.Logger.Debug().Msgf("账号(%s) 启动心跳协程 LoopActiveTest", runId)
 	for {
 		if atomic.LoadInt32(&s.ReadLoopRunning) == 0 {
@@ -680,23 +682,23 @@ func (s *SrvConn) LoopActiveTest() {
 		}
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
-		case recvSeqId := <-utils.HbSeqId.SeqId[runId]:
-			r.SeqId = recvSeqId
-			//logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
-			//	runId, recvSeqId, timer1, timer2)
+		//case recvSeqId := <-utils.HbSeqId.SeqId[runId]:
+		//	r.SeqId = recvSeqId
+		//	//logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
+		//	//	runId, recvSeqId, timer1, timer2)
+		//
+		//	if err := r.IOWrite(s.rw); err != nil {
+		//		s.Logger.Error().Msgf("账号(%s) 发送心跳应答包命令(CMPP_ACTIVE_TEST_RESP) error: %v", runId, err)
+		//		//if !strings.Contains(err.Error(), "connection reset by peer") {
+		//		//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
+		//		//}
+		//		timer1 = tick + 1
+		//		sendTry = 3
+		//	} else {
+		//		timer1 = 0
+		//	}
 
-			if err := r.IOWrite(s.rw); err != nil {
-				s.Logger.Error().Msgf("账号(%s) 发送心跳应答包命令(CMPP_ACTIVE_TEST_RESP) error: %v", runId, err)
-				//if !strings.Contains(err.Error(), "connection reset by peer") {
-				//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
-				//}
-				timer1 = tick + 1
-				sendTry = 3
-			} else {
-				timer1 = 0
-			}
-
-		case RespSeqId = <-utils.HbSeqId.RespSeqId[runId]:
+		case respSeqId = <-utils.HbSeqId.RespSeqId[runId]:
 			//c.Logger.Debug().Msgf("账号(%s)接收到心跳应答包(CMPP_ACTIVE_TEST_RESP),RespSeqId: %d, timer1: %d, timer2: %d", chid, RespSeqId, timer1,timer2)
 			sendTry = 0
 
@@ -709,17 +711,16 @@ func (s *SrvConn) LoopActiveTest() {
 		case <-timer.C:
 		}
 
-		if p.SeqId > RespSeqId && count%tickDelay == 0 && sendTry < retry {
-			s.Logger.Debug().Msgf("账号(%s) 接收激活测试应答命令(CMPP_ACTIVE_TEST_RESP)失败, SeqId:%d, "+
-				"RespSeqId:%d,send_try:%d", runId, p.SeqId, RespSeqId, sendTry)
-			sendTry++
-		}
+		//if p.SeqId > respSeqId && count%tickDelay == 0 && sendTry < retry {
+		//	s.Logger.Debug().Msgf("账号(%s) 接收激活测试应答命令(CMPP_ACTIVE_TEST_RESP)失败, SeqId:%d, "+
+		//		"RespSeqId:%d,send_try:%d", runId, p.SeqId, respSeqId, sendTry)
+		//	sendTry++
+		//}
 		//c.Logger.Debug().Msgf("timer1:%d,timer2:%d,sendTry:%d",timer1,timer2,sendTry)
 		if sendTry < retry && count%tick == 0 {
 			p.SeqId = atomic.AddUint32(&s.SeqId, 1)
 			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST), seqId: %d", runId, p.SeqId)
-			err := p.IOWrite(s.rw)
-			if err != nil {
+			if err := p.IOWrite(s.rw); err != nil {
 				s.Logger.Error().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST)失败:%v", runId, err)
 				timer1 = tick + 1
 				sendTry = 3
@@ -733,7 +734,7 @@ func (s *SrvConn) LoopActiveTest() {
 			goto EXIT
 		}
 		count++
-		timer1++
+		timer1 = int(atomic.AddUint32(&s.activeTestCount, 1))
 
 	}
 EXIT:
