@@ -700,7 +700,9 @@ func (s *SrvConn) LoopActiveTest() {
 		case <-utils.HbSeqId.RespSeqId[runId]:
 			//c.Logger.Debug().Msgf("账号(%s)接收到心跳应答包(CMPP_ACTIVE_TEST_RESP),RespSeqId: %d, timer1: %d, timer2: %d", chid, RespSeqId, timer1,timer2)
 			sendTry = 0
-
+		default:
+		}
+		select {
 		//case <-utils.NotifySig.IsTransfer[runId]: //通信信道上有数据不发送检测包
 		//	timer2 = 1
 		//	sendTry = 0
