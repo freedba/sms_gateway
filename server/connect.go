@@ -434,16 +434,6 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		s.Account.ConnFlowVelocity = 300
 	}
 
-	//var flowVelocity = &utils.FlowVelocity{
-	//	CurrTime: utils.GetCurrTimestamp(unit),
-	//	LastTime: utils.GetCurrTimestamp(unit),
-	//	Rate:     s.Account.ConnFlowVelocity, //流速控制
-	//	Unit:     unit,
-	//	Duration: 1000000000, //纳秒
-	//	RunMode:  runMode,
-	//	RunId:    runId,
-	//}
-	//s.FlowVelocity = flowVelocity
 	var rateLimit = utils.NewRateLimit(s.Account.ConnFlowVelocity, runId, runMode)
 	s.RateLimit = rateLimit
 
@@ -459,16 +449,13 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			switch h.CmdId {
 			case common.CMPP_ACTIVE_TEST:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
-				//select {
-				//case utils.HbSeqId.SeqId[runId] <- h.SeqId:
-				//case <-timer.C:
-				//}
 				if err := r.IOWrite(s.rw); err != nil {
 					if !utils.ChIsClosed(s.exitHandleCommandChan) {
 						close(s.exitHandleCommandChan)
 					}
 				}
 				atomic.StoreUint32(&s.activeTestCount, 0)
+
 			case common.CMPP_ACTIVE_TEST_RESP:
 				s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runId, h.SeqId)
 				select {
@@ -498,9 +485,6 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 
 			case common.CMPP_DELIVER_RESP:
 				atomic.AddInt64(&s.deliverTaskCount, 1)
-				//if int(count) > config.GetQlen() {
-				//	s.Logger.Warn().Msgf("通道(%s) 当前deliver任务数:%d",runId,count)
-				//}
 				s.waitGroup.Wrap(func() { s.handleDeliverResp(data) })
 
 			default:
@@ -544,6 +528,7 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	}
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
+
 	select {
 	case s.deliverRespChan <- *dr:
 	case t := <-timer.C:
@@ -573,10 +558,6 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 	resp.SeqId = h.SeqId
 	count = atomic.AddUint64(&s.count, 1)
-	//if count%uint64(s.FlowVelocity.Rate) == 0 {
-	//	s.FlowVelocity.CurrTime = utils.GetCurrTimestamp(s.FlowVelocity.Unit)
-	//	s.FlowVelocity.Control() //检测是否超速
-	//}
 
 	if !s.RateLimit.Available() {
 		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.FlowVelocity.Rate)
@@ -601,8 +582,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			resp.Result = 1
 		}
 	}
-	err = resp.IOWrite(s.rw)
-	if err != nil {
+
+	if err = resp.IOWrite(s.rw); err != nil {
 		s.Logger.Error().Msgf("账号(%s) SubmitResp IOWrite error: %v", runId, err)
 		goto EXIT
 	}
@@ -655,8 +636,7 @@ func (s *SrvConn) LoopActiveTest() {
 	//间 T 后未收到响应，应立即再发送链路检测包，再连续发送 N-1 次后仍未得到响应则断开
 	//此连接
 	// c=60s, t=10, n=3
-	var timer1 = 0 // 对端发送CMPP_ACTIVE_TEST超时计时
-	//var timer2 = 0  // 对端发送CMPP_ACTIVE_TEST_RESP超时计时
+	var timer1 = 0  // 对端发送CMPP_ACTIVE_TEST超时计时
 	var sendTry = 0 //发送CMPP_ACTIVE_TEST到对端尝试次数，max=3
 	var count = 0
 
@@ -674,29 +654,13 @@ func (s *SrvConn) LoopActiveTest() {
 
 	p := cmpp.NewActiveTest()
 	p.SeqId = atomic.LoadUint32(&s.SeqId)
-	s.Logger.Debug().Msgf("账号(%s) 启动心跳协程 LoopActiveTest", runId)
+	s.Logger.Debug().Msgf("账号(%s) 启动 LoopActiveTest", runId)
 	for {
 		if atomic.LoadInt32(&s.ReadLoopRunning) == 0 {
 			goto EXIT
 		}
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
-		//case recvSeqId := <-utils.HbSeqId.SeqId[runId]:
-		//	r.SeqId = recvSeqId
-		//	//logger.Debug().Msgf("账号(%s) 接收到心跳包(CMPP_ACTIVE_TEST), recvSeqId: %d, timer1: %d, timer2: %d",
-		//	//	runId, recvSeqId, timer1, timer2)
-		//
-		//	if err := r.IOWrite(s.rw); err != nil {
-		//		s.Logger.Error().Msgf("账号(%s) 发送心跳应答包命令(CMPP_ACTIVE_TEST_RESP) error: %v", runId, err)
-		//		//if !strings.Contains(err.Error(), "connection reset by peer") {
-		//		//	s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
-		//		//}
-		//		timer1 = tick + 1
-		//		sendTry = 3
-		//	} else {
-		//		timer1 = 0
-		//	}
-
 		case <-utils.HbSeqId.RespSeqId[runId]:
 			//c.Logger.Debug().Msgf("账号(%s)接收到心跳应答包(CMPP_ACTIVE_TEST_RESP),RespSeqId: %d, timer1: %d, timer2: %d", chid, RespSeqId, timer1,timer2)
 			sendTry = 0
@@ -712,12 +676,6 @@ func (s *SrvConn) LoopActiveTest() {
 		case <-timer.C:
 		}
 
-		//if p.SeqId > respSeqId && count%tickDelay == 0 && sendTry < retry {
-		//	s.Logger.Debug().Msgf("账号(%s) 接收激活测试应答命令(CMPP_ACTIVE_TEST_RESP)失败, SeqId:%d, "+
-		//		"RespSeqId:%d,send_try:%d", runId, p.SeqId, respSeqId, sendTry)
-		//	sendTry++
-		//}
-		//c.Logger.Debug().Msgf("timer1:%d,timer2:%d,sendTry:%d",timer1,timer2,sendTry)
 		if sendTry < retry && count%tick == 0 {
 			p.SeqId = atomic.AddUint32(&s.SeqId, 1)
 			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST), seqId: %d", runId, p.SeqId)
