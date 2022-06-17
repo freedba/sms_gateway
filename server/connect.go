@@ -428,7 +428,6 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 	runId := s.RunId
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
-	//var unit = "ns"
 
 	if s.Account.ConnFlowVelocity == 0 {
 		s.Account.ConnFlowVelocity = 300

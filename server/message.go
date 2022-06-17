@@ -280,22 +280,22 @@ func SubmitMsgIdToDB(ctx context.Context, s *SrvConn) {
 	}
 }
 
-type DeliverMsgInfo struct {
-	TaskNo        string `json:"task_no"`
-	StatusMessage string `json:"status_message"`
-	MessageInfo   string `json:"message_info"`
-	Mobile        string `json:"mobile"`
-	MsgId         string `json:"msg_id"`
-	SendTime      string `json:"send_time"`
-}
-
-type MoMsgInfo struct {
-	Mobile      string `json:"mobile"`
-	MessageInfo string `json:"message_info"`
-	BusinessId  int    `json:"business_id"`
-	GetTime     string `json:"get_time"`
-	DevelopNo   string `json:"develop_no"`
-}
+//type DeliverMsgInfo struct {
+//	TaskNo        string `json:"task_no"`
+//	StatusMessage string `json:"status_message"`
+//	MessageInfo   string `json:"message_info"`
+//	Mobile        string `json:"mobile"`
+//	MsgId         string `json:"msg_id"`
+//	SendTime      string `json:"send_time"`
+//}
+//
+//type MoMsgInfo struct {
+//	Mobile      string `json:"mobile"`
+//	MessageInfo string `json:"message_info"`
+//	BusinessId  int    `json:"business_id"`
+//	GetTime     string `json:"get_time"`
+//	DevelopNo   string `json:"develop_no"`
+//}
 
 type deliverSender struct {
 	deliverNmc *models.NsqMsgChan
@@ -432,7 +432,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 	var destId, srcTerminalId *common.OctetString
 	var content []byte
 	if registerDelivery == 0 { //上行
-		p := &MoMsgInfo{}
+		p := &cmpp.MoMsgInfo{}
 		err := json.Unmarshal(msg, p)
 		if err != nil {
 			s.Logger.Error().Msgf("账号(%s) json.unmarshal error:%v", s.RunId, err)
@@ -447,7 +447,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		destId = &common.OctetString{Data: []byte(s.Account.CmppDestId + p.DevelopNo), FixedLen: 21}
 		srcTerminalId = &common.OctetString{Data: []byte(p.Mobile), FixedLen: 21}
 	} else if registerDelivery == 1 { // 回执状态报告
-		dmi := &DeliverMsgInfo{}
+		dmi := &cmpp.DeliverMsgInfo{}
 		//dmi := snd.deliverMsgInfoPool.Get().(*DeliverMsgInfo)
 		err := json.Unmarshal(msg, dmi)
 		if err != nil {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"sms_lib/protocol/cmpp"
 	"sms_lib/protocol/common"
 	"sms_lib/utils"
 	"strconv"
@@ -20,7 +21,7 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*common.OctetStr
 	}
 	//hsm.MobileContent = strings.Join(mobile, ",")
 	if registerDelivery == 0 {
-		moMsg := MoMsgInfo{
+		moMsg := cmpp.MoMsgInfo{
 			Mobile:      "18432130952",
 			MessageInfo: "content",
 			BusinessId:  5,
@@ -33,7 +34,7 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*common.OctetStr
 		}
 	}
 	if registerDelivery == 1 {
-		deliverMsg := DeliverMsgInfo{
+		deliverMsg := cmpp.DeliverMsgInfo{
 			Mobile:        strings.Join(mobile, ","),
 			MessageInfo:   "content",
 			SendTime:      strconv.Itoa(int(utils.GetCurrTimestamp("ms"))),
