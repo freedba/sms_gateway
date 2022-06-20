@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"sms_lib/models"
+	"sms_lib/protocol/common"
 	"sms_lib/utils"
 	"strconv"
 	"strings"
@@ -60,10 +61,12 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 			if flag {
 				hsm := &HttpSubmitMessageInfo{}
 				var destTerminalId []string
-				if p.MsgFmt == 8 {
+				if p.MsgFmt == common.UCS2 {
 					content = utils.Ucs2ToUtf8(content)
-				} else if p.MsgFmt == 15 {
+				} else if p.MsgFmt == common.GB18030 {
 					content = utils.GbkToUtf8(content)
+				} else {
+
 				}
 				hsm.TaskContent = string(content)
 				hsm.DevelopNo = p.SrcId.String()[len(s.Account.CmppDestId):]
