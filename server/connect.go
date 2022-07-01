@@ -677,9 +677,9 @@ func (s *SrvConn) LoopActiveTest() {
 
 		if sendTry < retry && count%tick == 0 {
 			p.SeqId = atomic.AddUint32(&s.SeqId, 1)
-			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST), seqId: %d", runId, p.SeqId)
+			//s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST), seqId: %d", runId, p.SeqId)
 			if err := p.IOWrite(s.rw); err != nil {
-				s.Logger.Error().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST)失败:%v", runId, err)
+				//s.Logger.Error().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST)失败:%v", runId, err)
 				timer1 = tick + 1
 				sendTry = 3
 			}

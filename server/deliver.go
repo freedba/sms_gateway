@@ -27,7 +27,7 @@ type deliverSender struct {
 
 func DeliverPush(s *SrvConn) {
 	cfg := config.GetTopicPrefix()
-	chid := s.Account.Id
+	uid := s.Account.Id
 	user := s.Account.NickName
 	var moNmc *models.NsqMsgChan
 	var wg sync.WaitGroup
@@ -36,8 +36,8 @@ func DeliverPush(s *SrvConn) {
 	stopCh := make(chan struct{})
 
 	topicPrefix := cfg.DeliverSend
-	topicName := topicPrefix + strconv.FormatInt(chid, 10)
-	deliverNmc, err := models.InitConsumer(topicPrefix, strconv.Itoa(int(chid)), 1)
+	topicName := topicPrefix + strconv.FormatInt(uid, 10)
+	deliverNmc, err := models.InitConsumer(topicPrefix, strconv.Itoa(int(uid)), 1)
 	if err != nil {
 		s.Logger.Error().Msgf("账号(%s) 启动消费 (%s) 失败: %v, Exiting DeliverSend...",
 			user, topicName, err)
@@ -45,8 +45,8 @@ func DeliverPush(s *SrvConn) {
 	}
 
 	topicPrefix = cfg.DeliverMoSend
-	topicName = topicPrefix + strconv.FormatInt(chid, 10)
-	moNmc, err = models.InitConsumer(topicPrefix, strconv.Itoa(int(chid)), 1)
+	topicName = topicPrefix + strconv.FormatInt(uid, 10)
+	moNmc, err = models.InitConsumer(topicPrefix, strconv.Itoa(int(uid)), 1)
 	if err != nil {
 		s.Logger.Error().Msgf("账号(%s) 启动消费者 (%s) 失败: %v, Exiting DeliverSend...",
 			user, topicName, err)
