@@ -238,11 +238,18 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 		resp.Status = common.ErrnoConnectInvalidStruct
 		return resp, err
 	}
+	if account.FlowVelocity == 0 {
+		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
+		logger.Error().Msgf("账号(%s) 流控为0，拒绝建立连接, error:%v", user, err)
+		resp.Status = common.ErrnoConnectAuthFaild
+		return resp, err
+	}
+
 	if account.ConnFlowVelocity == 0 {
 		account.ConnFlowVelocity = 100
 	}
 
-	currConns := sess.GetUserConns(user)
+	currConns := sess.GetUserConn(user)
 	maxConns := account.FlowVelocity / account.ConnFlowVelocity
 	//isLogin, ok := sess.Users[user]
 	//if ok && len(isLogin) == 5 {

@@ -1,6 +1,7 @@
 package task
 
 import (
+	"encoding/json"
 	"os"
 	"runtime"
 	"sms_gateway/server"
@@ -19,6 +20,9 @@ func ServerSupervise(sess *server.Sessions) {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	threshold := config.GetThreshold()
+	rKey := "index:user:userinfo:"
+	account := server.AccountsInfo{}
+
 	for {
 		utils.ResetTimer(timer, timeout)
 
@@ -32,8 +36,20 @@ func ServerSupervise(sess *server.Sessions) {
 		if utils.GetCpuPercent() > threshold {
 			logger.Warn().Msgf("当前节点cpu使用率已超%2.f%%,负载过高", threshold)
 		}
-		for user, conns := range sess.Users {
-			logger.Info().Msgf("账号(%s) 已建立的连接数：%d", user, len(conns))
+
+		for user, conn := range sess.Users {
+			logger.Info().Msgf("账号(%s) 已建立的连接数：%d", user, len(conn))
+			str := models.RedisHGet(rKey, user)
+			if str == "" {
+				logger.Debug().Msgf("账号(%s) 不存在，关闭账号连接", user)
+				sess.Close(user)
+			} else {
+				_ = json.Unmarshal([]byte(str), &account)
+				if account.FlowVelocity == 0 {
+					logger.Debug().Msgf("账号(%s) 流控值为0，关闭账号连接", user)
+					sess.Close(user)
+				}
+			}
 		}
 		select {
 		case <-server.SignalExit:
@@ -67,6 +83,7 @@ func LoopSrvMain() {
 		logger.Error().Msgf("Producer NewProducer error:%v", err)
 		return
 	}
+
 	sess := &server.Sessions{
 		Users: make(map[string][]string),
 	}

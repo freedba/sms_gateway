@@ -14,8 +14,8 @@ func signalHandle(sess *Sessions) {
 	signal.Notify(exitChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGKILL)
 	sig := <-exitChan
 	logger.Debug().Msgf("接收到退出信号：%v，关闭所有账号连接", sig)
-	for name, users := range sess.Users {
-		for i := 0; i < len(users); i++ {
+	for name, strPoints := range sess.Users {
+		for i := 0; i < len(strPoints); i++ {
 			runId := name + ":" + sess.Users[name][i]
 			logger.Debug().Msgf("关闭账号:%s", runId)
 			close(utils.ExitSig.LoopRead[runId])
