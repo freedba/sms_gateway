@@ -548,10 +548,6 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	if resp.MsgId == 0 {
 		s.Logger.Error().Msgf("msgId generate error:")
 		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)
-		//if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
-		//	s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE IOWrite: %v", runId, err)
-		//}
-		//time.Sleep(time.Duration(1) * time.Second)
 		goto EXIT
 	}
 	resp.SeqId = h.SeqId

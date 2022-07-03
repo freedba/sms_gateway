@@ -94,7 +94,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		if s.IsClosing() || s.ReadLoopRunning == 0 {
 			s.Logger.Debug().Msgf("账号(%s) s.IsClosing:%v,s.ReadLoopRunning:%d",
 				s.RunId, s.IsClosing(), s.ReadLoopRunning)
-			goto EXIT
+			exitFlag = false
 		}
 		//logger.Debug().Msgf("deliverNmc.MsgChan:%d,moNmc.MsgChan:%d",len(deliverNmc.MsgChan),len(moNmc.MsgChan))
 		select {
@@ -124,6 +124,10 @@ func (snd *deliverSender) consumeDeliverMsg() {
 				s.Logger.Error().Msgf("账号(%s) deliverMsg return error: %v", s.RunId, err)
 				s.Logger.Debug().Msgf("通道(%s) deliverMsg.Body: %v", s.RunId, deliverMsg.Body)
 				exitFlag = true
+				topicName := deliverNmc.TopicName
+				if err = models.Prn.PubMgr.Publish(topicName, deliverMsg.Body); err != nil {
+					logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", s.RunId, err, topicName)
+				}
 				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
 				if !utils.ChIsClosed(s.ExitSrv) {
 					close(s.ExitSrv)
@@ -135,6 +139,10 @@ func (snd *deliverSender) consumeDeliverMsg() {
 				s.Logger.Error().Msgf("账号(%s) moMsg return error: %v", s.RunId, err)
 				s.Logger.Debug().Msgf("通道(%s) moMsg.Body: %v", s.RunId, moMsg.Body)
 				exitFlag = true
+				topicName := moNmc.TopicName
+				if err = models.Prn.PubMgr.Publish(topicName, moMsg.Body); err != nil {
+					logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", s.RunId, err, topicName)
+				}
 				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
 				if !utils.ChIsClosed(s.ExitSrv) {
 					close(s.ExitSrv)
@@ -197,7 +205,6 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		srcTerminalId = &common.OctetString{Data: []byte(p.Mobile), FixedLen: 21}
 	} else if registerDelivery == 1 { // 回执状态报告
 		dmi := &cmpp.DeliverMsgInfo{}
-		//dmi := snd.deliverMsgInfoPool.Get().(*DeliverMsgInfo)
 		err := json.Unmarshal(msg, dmi)
 		if err != nil {
 			s.Logger.Error().Msgf("账号(%s) json.unmarshal error:%v", s.Account.NickName, err)
