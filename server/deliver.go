@@ -69,7 +69,10 @@ func DeliverPush(s *SrvConn) {
 EXIT:
 	atomic.StoreInt32(&s.deliverSenderExit, 1)
 	if atomic.LoadInt32(&s.ReadLoopRunning) == 1 {
-		utils.ExitSig.DeliverySender[s.RunId] <- true
+		s.Logger.Debug().Msgf("账号(%s) close(c.ExitSrv)")
+		if !utils.ChIsClosed(s.ExitSrv) {
+			close(s.ExitSrv)
+		}
 	}
 	s.Logger.Debug().Msgf("账号(%s) Exiting DeliverSend...", s.RunId)
 }
@@ -77,6 +80,7 @@ EXIT:
 func (snd *deliverSender) consumeDeliverMsg() {
 	s := snd.s
 	var err error
+	var exitFlag = false
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	deliverNmc := snd.deliverNmc
@@ -94,20 +98,47 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		}
 		//logger.Debug().Msgf("deliverNmc.MsgChan:%d,moNmc.MsgChan:%d",len(deliverNmc.MsgChan),len(moNmc.MsgChan))
 		select {
-		case <-utils.ExitSig.LoopRead[s.RunId]:
-			s.Logger.Debug().Msgf("账号(%s) 收到utils.ExitSig.LoopRead信号,退出consumeDeliverMsg", s.RunId)
-			goto EXIT
+		case <-s.ExitSrv:
+			s.Logger.Debug().Msgf("账号(%s) 收到s.ExitSrv信号,退出consumeDeliverMsg", s.RunId)
+			exitFlag = true
+		default:
+		}
+
+		if exitFlag {
+			if atomic.LoadInt32(&deliverNmc.StopFlag) == 0 {
+				deliverNmc.Consumer.Stop()
+				atomic.StoreInt32(&deliverNmc.StopFlag, 1)
+				s.Logger.Info().Msgf("通道(%s) 已关闭 deliverNmc.Consumer", s.RunId)
+			}
+			if atomic.LoadInt32(&moNmc.StopFlag) == 0 {
+				moNmc.Consumer.Stop()
+				atomic.StoreInt32(&moNmc.StopFlag, 1)
+				s.Logger.Info().Msgf("通道(%s) 已关闭 moNmc.Consumer", s.RunId)
+			}
+		}
+
+		select {
 		case deliverMsg := <-deliverNmc.MsgChan:
-			err = snd.msgWrite(1, deliverMsg.Body)
-			if err != nil {
+			//fix me
+			if err = snd.msgWrite(1, deliverMsg.Body); err != nil {
 				s.Logger.Error().Msgf("账号(%s) deliverMsg return error: %v", s.RunId, err)
-				goto EXIT
+				s.Logger.Debug().Msgf("通道(%s) deliverMsg.Body: %v", s.RunId, deliverMsg.Body)
+				exitFlag = true
+				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
+				if !utils.ChIsClosed(s.ExitSrv) {
+					close(s.ExitSrv)
+				}
 			}
 		case moMsg := <-moNmc.MsgChan:
-			err = snd.msgWrite(0, moMsg.Body)
-			if err != nil {
+			//fix me
+			if err = snd.msgWrite(0, moMsg.Body); err != nil {
 				s.Logger.Error().Msgf("账号(%s) moMsg return error: %v", s.RunId, err)
-				goto EXIT
+				s.Logger.Debug().Msgf("通道(%s) moMsg.Body: %v", s.RunId, moMsg.Body)
+				exitFlag = true
+				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
+				if !utils.ChIsClosed(s.ExitSrv) {
+					close(s.ExitSrv)
+				}
 			}
 		case msg := <-s.deliverFakeChan:
 			err = snd.msgWrite(1, msg)
@@ -117,14 +148,13 @@ func (snd *deliverSender) consumeDeliverMsg() {
 			}
 		case <-timer.C:
 			//s.Logger.Debug().Msgf("账号(%s) consumeDeliverMsg Tick at: %v", s.RunId, t)
+			if exitFlag {
+				goto EXIT
+			}
 		}
 	}
 EXIT:
-	deliverNmc.Consumer.Stop()
-	moNmc.Consumer.Stop()
-
-	s.Logger.Debug().Msgf("账号(%s) Exiting deliverMsg", s.RunId)
-	return
+	s.Logger.Debug().Msgf("账号(%s) Exiting deliverMsg...", s.RunId)
 }
 
 func (snd *deliverSender) cleanChan(msg chan nsq.Message) {
@@ -209,13 +239,13 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 	d.CmdId = common.CMPP_DELIVER
 	d.TotalLen = 12 + 8 + 21 + 10 + 1 + 1 + 1 + 21 + 1 + 1 + uint32(tLen) + 8
 
-	mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(newSeqId))
-	s.mapKeyInChan <- mapKey // 仅用作回执发送缓冲控制
-	s.deliverMsgMap.Set(mapKey, *d)
 	if err := d.IOWrite(s.rw); err != nil {
 		s.Logger.Error().Msgf("账号(%s) send deliver msg error:%v", s.RunId, err)
 		return err
 	}
+	mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(newSeqId))
+	s.mapKeyInChan <- mapKey // 仅用作回执发送缓冲控制
+	s.deliverMsgMap.Set(mapKey, *d)
 	s.DeliverSendCount++
 	if s.DeliverSendCount%utils.PeekInterval == 0 {
 		s.Logger.Debug().Msgf("账号(%s) 推送回执，SeqId: %d, s.DeliverSendCount: %d, s.deliverMsgMap.Count:%d,"+

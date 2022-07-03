@@ -10,14 +10,6 @@ import (
 	"time"
 )
 
-func InitChan(runId string) {
-	utils.ExitSig.LoopActiveTest[runId] = make(chan bool, 1)
-	utils.ExitSig.DeliverySender[runId] = make(chan bool, 1)
-	utils.ExitSig.LoopRead[runId] = make(chan bool, 1)
-	utils.HbSeqId.RespSeqId[runId] = make(chan uint32, 20)
-	utils.HbSeqId.SeqId[runId] = make(chan uint32, 20)
-}
-
 func NewSnowflakeNode() {
 	var err error
 	ns := time.Date(2021, 1, 0, 0, 0, 0, 0, time.UTC).UnixNano()

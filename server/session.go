@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"sms_lib/utils"
 	"strconv"
@@ -10,7 +11,7 @@ import (
 
 type Sessions struct {
 	ln         net.Listener
-	Users      map[string][]string
+	Users      map[string][]*SrvConn
 	conns      map[string]int
 	RemoteAddr string
 	mLock      *sync.Mutex
@@ -43,30 +44,42 @@ func (sess *Sessions) UpdEtcdKey(name string) {
 }
 
 func (sess *Sessions) Close(user string) {
-	if strPoints, ok := sess.Users[user]; ok {
-		for i := 0; i < len(strPoints); i++ {
-			runId := user + ":" + sess.Users[user][i]
-			logger.Debug().Msgf("关闭账号:%s", runId)
-			close(utils.ExitSig.LoopRead[runId])
+	if srvList, ok := sess.Users[user]; ok {
+		for i := 0; i < len(srvList); i++ {
+			s := sess.Users[user][i]
+			runId := user + ":" + fmt.Sprintf("%p", s.conn)
+			logger.Debug().Msgf("关闭账号:%s,close(s.ExitSrv)", runId)
+			if !utils.ChIsClosed(s.ExitSrv) {
+				close(s.ExitSrv)
+			}
 		}
 	}
 }
 
-func (sess *Sessions) Add(user string, strPoint string) {
+func (sess *Sessions) Add(user string, srv *SrvConn) {
 	sess.mLock.Lock()
 	defer sess.mLock.Unlock()
-	sess.Users[user] = append(sess.Users[user], strPoint)
+	sess.Users[user] = append(sess.Users[user], srv)
 	sess.UpdEtcdKey(user)
 }
 
-func (sess *Sessions) Done(user string, strPoint string) {
+func (sess *Sessions) Done(user string, srv *SrvConn) {
 	sess.mLock.Lock()
 	defer sess.mLock.Unlock()
-	if strPoints, ok := sess.Users[user]; ok {
-		sess.Users[user] = utils.SliceRemove(strPoints, strPoint)
+	if srvList, ok := sess.Users[user]; ok {
+		sess.Users[user] = sess.SliceRemove(srvList, srv)
 		sess.UpdEtcdKey(user)
 		if len(sess.Users[user]) == 0 {
 			delete(sess.Users, user)
 		}
 	}
+}
+
+func (sess *Sessions) SliceRemove(s []*SrvConn, r *SrvConn) []*SrvConn {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
+		}
+	}
+	return s
 }

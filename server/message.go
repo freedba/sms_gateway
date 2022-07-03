@@ -26,8 +26,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		utils.ResetTimer(timer, utils.Timeout)
 
 		if s.IsClosing() && len(s.SubmitChan) == 0 {
-			//1,网络关闭，nsq可用处理完缓存数据再退出.
-			//2,nsq不可用直接退出
+			//网络关闭，nsq可用处理完缓存数据再退出.
 			goto EXIT
 		}
 		select {
