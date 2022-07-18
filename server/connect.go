@@ -9,6 +9,7 @@ import (
 	cmap "github.com/orcaman/concurrent-map"
 	"io"
 	"net"
+	"regexp"
 	"runtime"
 	"sms_lib/config"
 	"sms_lib/levellogger"
@@ -571,10 +572,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 
 	if resp.Result == 0 {
-		if p.TPPid > 1 {
-			s.Logger.Error().Msgf("账号(%s)  p.TPPid > 1", runId)
-			resp.Result = 1
-		}
+
+		resp.Result = s.VerifySubmit(p)
 	}
 
 	if err = resp.IOWrite(s.rw); err != nil {
@@ -622,6 +621,42 @@ EXIT:
 		close(s.ExitSrv)
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
+}
+
+func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
+	runId := s.RunId
+
+	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 2 {
+		logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
+		return common.ErrnoSubmitInvalidStruct
+	}
+	if p.ServiceId.String() != s.Account.NickName {
+		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String()", runId)
+		return common.ErrnoDeliverInvalidServiceId
+	}
+
+	if p.MsgSrc.String() != s.Account.NickName {
+		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String()", runId)
+		return common.ErrnoDeliverInvalidStruct
+	}
+
+	if p.TPPid > 1 {
+		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
+		return 1
+	}
+	regexpStr := "^" + p.SrcId.String()
+	re := regexp.MustCompile(s.Account.CmppDestId)
+	if !re.MatchString(regexpStr) {
+		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ ^p.SrcId.String()", runId)
+		return common.ErrnoSubmitInvalidSrcId
+	}
+
+	if len(p.SrcId.String()) < len(s.Account.CmppDestId) {
+		logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
+		return common.ErrnoSubmitInvalidSrcId
+	}
+
+	return 0
 }
 
 func (s *SrvConn) LoopActiveTest(ctx context.Context) {
