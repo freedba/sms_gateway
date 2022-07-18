@@ -477,7 +477,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				goto EXIT
 
 			case common.CMPP_TERMINATE_RESP:
-				s.Logger.Debug().Msgf("账号(%s) 收到拆除连接应答命令(CMPP_TERMINATE_RESP), SeqId", runId, h.SeqId)
+				s.Logger.Debug().Msgf("账号(%s) 收到拆除连接应答命令(CMPP_TERMINATE_RESP), SeqId:%d", runId, h.SeqId)
 				goto EXIT
 
 			case common.CMPP_SUBMIT:
@@ -613,6 +613,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
 			}
 			time.Sleep(time.Duration(1) * time.Second)
+			goto EXIT
 		}
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
