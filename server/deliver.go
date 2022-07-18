@@ -157,6 +157,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		case <-timer.C:
 			//s.Logger.Debug().Msgf("账号(%s) consumeDeliverMsg Tick at: %v", s.RunId, t)
 			if exitFlag {
+				s.Logger.Error().Msgf("账号(%s) exitFlag is true, 退出", s.RunId)
 				goto EXIT
 			}
 		}
@@ -211,7 +212,10 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 			s.Logger.Error().Msgf("dmi msg json: %v", msg)
 			return err
 		}
-		msgId, _ = strconv.ParseUint(dmi.MsgId, 10, 64)
+		msgId, err = strconv.ParseUint(dmi.MsgId, 10, 64)
+		if err != nil {
+			s.Logger.Error().Msgf("dmi.MsgId(%s) parseUint error:%v", dmi.MsgId, err)
+		}
 
 		dm.MsgId = msgId
 		dm.Stat = &common.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
