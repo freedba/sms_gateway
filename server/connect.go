@@ -572,7 +572,6 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 
 	if resp.Result == 0 {
-
 		resp.Result = s.VerifySubmit(p)
 	}
 
@@ -605,7 +604,10 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	} else {
 		if resp.Result == common.ErrnoSubmitInvalidMsgLength ||
 			resp.Result == common.ErrnoSubmitInvalidSequence ||
-			resp.Result == common.ErrnoSubmitInvalidStruct {
+			resp.Result == common.ErrnoSubmitInvalidStruct ||
+			resp.Result == common.ErrnoSubmitInvalidSrcId ||
+			resp.Result == common.ErrnoSubmitInvalidMsgSrc ||
+			resp.Result == common.ErrnoDeliverInvalidServiceId {
 			s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
 			if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
