@@ -41,8 +41,9 @@ type SrvConn struct {
 	deliverSenderExit int32
 	CloseFlag         int32
 
-	longSms   map[uint8]map[uint8][]byte
-	longMsgId map[uint8][]string
+	//longSms   map[uint8]map[uint8][]byte
+	longSms *LongSmsMap
+	//longMsgId map[uint8][]string
 
 	deliverMsgMap         cmap.ConcurrentMap
 	deliverResendCountMap cmap.ConcurrentMap
@@ -144,6 +145,10 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		deliverMsgMap:         cmap.New(),
 		deliverResendCountMap: cmap.New(),
 		rw:                    socket.NewPacketRW(conn),
+		longSms: &LongSmsMap{
+			LongSms: make(map[uint8]*LongSms),
+			mLock:   new(sync.Mutex),
+		},
 	}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)

@@ -35,20 +35,34 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 			if p.TPUdhi == 1 { //长短信
 				udhi := p.MsgContent[0:6]
 				rand := udhi[3]
-				if _, ok := s.longSms[rand]; !ok {
-					s.longSms = make(map[uint8]map[uint8][]byte)
-					s.longSms[rand] = make(map[uint8][]byte)
-					s.longMsgId = make(map[uint8][]string)
+				if !s.longSms.exist(rand) {
+					//s.longSms = make(map[uint8]*LongSms)
+					ls := &LongSms{
+						Content: make(map[uint8][]byte),
+						MsgID:   make(map[uint8]string),
+					}
+					s.longSms.set(rand, ls)
+					//s.longSms = make(map[uint8]map[uint8][]byte)
+					//s.longSms[rand] = make(map[uint8][]byte)
+					//s.longMsgId = make(map[uint8][]string)
 				}
 				pkTotal := p.PkTotal
 				pkNumber := p.PkNumber
-				s.longSms[rand][pkNumber] = p.MsgContent[6:]
-				s.longMsgId[rand] = append(s.longMsgId[rand], msgId)
-				if len(s.longSms[rand]) == int(pkTotal) {
+				ls := s.longSms.get(rand)
+				ls.set(pkNumber, msgId, p.MsgContent[6:])
+				//s.longSms[rand][pkNumber] = p.MsgContent[6:]
+				//s.longSms
+				//s.longSms[rand].Content[pkNumber] = p.MsgContent[6:]
+				//s.longSms[rand].MsgID[pkNumber] = msgId
+				//s.longMsgId[rand] = append(s.longMsgId[rand], msgId)
+				if ls.len() == pkTotal {
 					for i := uint8(1); i <= pkTotal; i++ {
-						content = append(content, s.longSms[rand][i]...)
+						ID, buf := ls.get(i)
+						sendMsgId = append(sendMsgId, ID)
+						content = append(content, buf...)
+
 					}
-					sendMsgId = s.longMsgId[rand]
+					s.longSms.del(rand)
 					flag = true
 				}
 			} else if p.TPUdhi == 0 { //短短信
@@ -86,8 +100,8 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				flag = false
 				sendMsgId = nil
 				content = nil
-				s.longSms = nil
-				s.longMsgId = nil
+				//s.longSms = nil
+				//s.longMsgId = nil
 			}
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)

@@ -78,3 +78,76 @@ func (w *WaitGroupWrapper) Wrap(f func()) {
 		w.Done()
 	}()
 }
+
+type LongSms struct {
+	Content map[uint8][]byte
+	MsgID   map[uint8]string
+	mLock   *sync.Mutex
+}
+
+func (ls *LongSms) set(k uint8, msgID string, content []byte) {
+	ls.mLock.Lock()
+	defer ls.mLock.Unlock()
+	ls.Content[k] = content
+	ls.MsgID[k] = msgID
+}
+
+func (ls *LongSms) len() uint8 {
+	ls.mLock.Lock()
+	defer ls.mLock.Unlock()
+	return uint8(len(ls.MsgID))
+}
+
+func (ls *LongSms) get(k uint8) (msgID string, content []byte) {
+	ls.mLock.Lock()
+	defer ls.mLock.Unlock()
+	msgID, _ = ls.MsgID[k]
+	content, _ = ls.Content[k]
+	return msgID, content
+}
+
+//func (ls *LongSms) get(k uint8) *LongSms {
+//	ls.mLock.Lock()
+//	defer ls.mLock.Unlock()
+//	val, ok := ls.LongSms[k]
+//	if ok {
+//		return val
+//	}
+//	return nil
+//}
+//
+
+type LongSmsMap struct {
+	LongSms   map[uint8]*LongSms
+	Timestamp int64
+	mLock     *sync.Mutex
+}
+
+func (lsm *LongSmsMap) get(k uint8) *LongSms {
+	lsm.mLock.Lock()
+	defer lsm.mLock.Unlock()
+	val, ok := lsm.LongSms[k]
+	if ok {
+		return val
+	}
+	return nil
+}
+
+func (lsm *LongSmsMap) set(k uint8, v *LongSms) {
+	lsm.mLock.Lock()
+	defer lsm.mLock.Unlock()
+	lsm.LongSms[k] = v
+}
+
+func (lsm *LongSmsMap) exist(k uint8) bool {
+	lsm.mLock.Lock()
+	lsm.mLock.Unlock()
+	_, ok := lsm.LongSms[k]
+	return ok
+}
+
+func (lsm *LongSmsMap) del(k uint8) {
+	lsm.mLock.Lock()
+	lsm.mLock.Unlock()
+	delete(lsm.LongSms, k)
+}
