@@ -58,6 +58,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 					s.longSms.del(rand)
 					flag = true
 				}
+				s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 			} else if p.TPUdhi == 0 { //短短信
 				content = p.MsgContent
 				sendMsgId = append(sendMsgId, msgId)
@@ -87,16 +88,18 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				s.SubmitToQueueCount++
 				if s.SubmitToQueueCount%utils.PeekInterval == 0 {
 					s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, MsgId: %s, s.SubmitChan len: %d,"+
-						"s.SubmitToQueueCount: %d", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), s.SubmitToQueueCount)
+						"s.SubmitToQueueCount: %d, ", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), s.SubmitToQueueCount)
+					s.Logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
 					//logger.Debug().Msgf("hsm.DevelopNo:%s",hsm.DevelopNo)
 				}
 				flag = false
 				sendMsgId = nil
 				content = nil
+				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
 			}
 		case <-timer.C:
 			if s.longSms.len() > 0 {
-				logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
+				s.Logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
 			}
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
 		}
