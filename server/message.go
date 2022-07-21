@@ -53,7 +53,6 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 						ID, buf := ls.get(i)
 						sendMsgId = append(sendMsgId, ID)
 						content = append(content, buf...)
-
 					}
 					s.longSms.del(rand)
 					flag = true
@@ -98,9 +97,6 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
 			}
 		case <-timer.C:
-			if s.longSms.len() > 0 {
-				s.Logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
-			}
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
 		}
 	}
@@ -145,6 +141,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 		}
 	}
 	if discard { //短信丢弃
+		logger.Error().Msgf("丢弃的短信:%v", hsm.SendMsgId)
 		return
 	}
 	sendLen := int64(len([]rune(hsm.TaskContent)))
