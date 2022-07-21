@@ -9,6 +9,7 @@ import (
 	"sms_lib/utils"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,25 +37,17 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				udhi := p.MsgContent[0:6]
 				rand := udhi[3]
 				if !s.longSms.exist(rand) {
-					//s.longSms = make(map[uint8]*LongSms)
 					ls := &LongSms{
 						Content: make(map[uint8][]byte),
 						MsgID:   make(map[uint8]string),
+						mLock:   new(sync.Mutex),
 					}
 					s.longSms.set(rand, ls)
-					//s.longSms = make(map[uint8]map[uint8][]byte)
-					//s.longSms[rand] = make(map[uint8][]byte)
-					//s.longMsgId = make(map[uint8][]string)
 				}
 				pkTotal := p.PkTotal
 				pkNumber := p.PkNumber
 				ls := s.longSms.get(rand)
 				ls.set(pkNumber, msgId, p.MsgContent[6:])
-				//s.longSms[rand][pkNumber] = p.MsgContent[6:]
-				//s.longSms
-				//s.longSms[rand].Content[pkNumber] = p.MsgContent[6:]
-				//s.longSms[rand].MsgID[pkNumber] = msgId
-				//s.longMsgId[rand] = append(s.longMsgId[rand], msgId)
 				if ls.len() == pkTotal {
 					for i := uint8(1); i <= pkTotal; i++ {
 						ID, buf := ls.get(i)
@@ -100,8 +93,6 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				flag = false
 				sendMsgId = nil
 				content = nil
-				//s.longSms = nil
-				//s.longMsgId = nil
 			}
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
