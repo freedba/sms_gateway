@@ -33,7 +33,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		select {
 		case p := <-s.SubmitChan:
 			msgId := strconv.FormatUint(p.MsgId, 10)
-			s.Logger.Debug().Msgf("s.longsms:%+v", s.longSms)
+			s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
 			if p.TPUdhi == 1 { //长短信
 				udhi := p.MsgContent[0:6]
 				rand := udhi[3]
@@ -47,6 +47,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				}
 				pkTotal := p.PkTotal
 				pkNumber := p.PkNumber
+				s.Logger.Debug().Msgf("pkTotal:%d, pkNumber:%d, rand:%d, s.longSms len:%d, s.longSms:%+v", pkTotal, pkNumber, rand, s.longSms.len(), s.longSms.LongSms)
 				ls := s.longSms.get(rand)
 				ls.set(pkNumber, msgId, p.MsgContent[6:])
 				if ls.len() == pkTotal {
