@@ -88,8 +88,8 @@ type LongSms struct {
 func (ls *LongSms) set(k uint8, msgID string, content []byte) {
 	ls.mLock.Lock()
 	defer ls.mLock.Unlock()
-	ls.Content[k] = content
 	ls.MsgID[k] = msgID
+	ls.Content[k] = content
 }
 
 func (ls *LongSms) len() uint8 {
@@ -105,17 +105,6 @@ func (ls *LongSms) get(k uint8) (msgID string, content []byte) {
 	content, _ = ls.Content[k]
 	return msgID, content
 }
-
-//func (ls *LongSms) get(k uint8) *LongSms {
-//	ls.mLock.Lock()
-//	defer ls.mLock.Unlock()
-//	val, ok := ls.LongSms[k]
-//	if ok {
-//		return val
-//	}
-//	return nil
-//}
-//
 
 type LongSmsMap struct {
 	LongSms   map[uint8]*LongSms
@@ -150,4 +139,10 @@ func (lsm *LongSmsMap) del(k uint8) {
 	lsm.mLock.Lock()
 	lsm.mLock.Unlock()
 	delete(lsm.LongSms, k)
+}
+
+func (lsm *LongSmsMap) len() uint8 {
+	lsm.mLock.Lock()
+	defer lsm.mLock.Unlock()
+	return uint8(len(lsm.LongSms))
 }

@@ -87,6 +87,7 @@ deploy preview image:
       - sms
     stage: deploy
     before_script:
+      - sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
       - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y && apt-get install -y iputils-ping )'
       - eval $(ssh-agent -s)
       - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -

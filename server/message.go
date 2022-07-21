@@ -95,6 +95,9 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 				content = nil
 			}
 		case <-timer.C:
+			if s.longSms.len() > 0 {
+				logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
+			}
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
 		}
 	}

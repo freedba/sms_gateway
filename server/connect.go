@@ -41,9 +41,7 @@ type SrvConn struct {
 	deliverSenderExit int32
 	CloseFlag         int32
 
-	//longSms   map[uint8]map[uint8][]byte
 	longSms *LongSmsMap
-	//longMsgId map[uint8][]string
 
 	deliverMsgMap         cmap.ConcurrentMap
 	deliverResendCountMap cmap.ConcurrentMap
