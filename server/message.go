@@ -141,7 +141,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 		}
 	}
 	if discard { //短信丢弃
-		logger.Error().Msgf("丢弃的短信:%v", hsm.SendMsgId)
+		s.Logger.Error().Msgf("丢弃的短信:%v", hsm.SendMsgId)
 		return
 	}
 	sendLen := int64(len([]rune(hsm.TaskContent)))
