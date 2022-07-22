@@ -556,6 +556,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 
 	if resp.Result == 0 {
+		p.SeqId = h.SeqId
+		p.MsgId = resp.MsgId
 		resp.Result = s.VerifySubmit(p)
 	}
 
@@ -571,9 +573,6 @@ func (s *SrvConn) handleSubmit(data []byte) {
 
 	s.LastSeqId = h.SeqId
 	if resp.Result == 0 {
-		p.SeqId = h.SeqId
-		p.MsgId = resp.MsgId
-
 		if FakeGateway == 1 { //模拟网关服务器
 			go s.makeDeliverMsg(p.MsgId, p.DestTerminalId)
 		} else {
@@ -642,18 +641,19 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 			}
 			s.longSms.set(rand, ls)
 		}
-		pkTotal := p.PkTotal
-		pkNumber := p.PkNumber
 		ls := s.longSms.get(rand)
 		s.lsmLock.Unlock()
-		s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
-			s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
+		pkTotal := p.PkTotal
+		pkNumber := p.PkNumber
 		if ls.exist(pkNumber) {
 			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d 长短信标志位重复",
 				s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId)
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(pkNumber, msgId, p.MsgContent[6:])
+		s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
+			s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
+
 	} else {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
 		return common.ErrnoSubmitInvalidStruct

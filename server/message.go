@@ -62,12 +62,12 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 			}
 			s.longSms.del(rand)
 			flag = true
-			if !utils.Debug {
+			if utils.Debug {
 				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
 			}
 		}
 		s.lsLock.Unlock()
-		if !utils.Debug {
+		if utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
 	} else if p.TPUdhi == 0 { //短短信
