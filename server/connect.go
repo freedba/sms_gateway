@@ -632,6 +632,8 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
 		msgId := strconv.FormatUint(p.MsgId, 10)
+		pkTotal := p.PkTotal
+		pkNumber := p.PkNumber
 		s.lsmLock.Lock()
 		if !s.longSms.exist(rand) {
 			ls := &LongSms{
@@ -642,15 +644,13 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 			s.longSms.set(rand, ls)
 		}
 		ls := s.longSms.get(rand)
-		s.lsmLock.Unlock()
-		pkTotal := p.PkTotal
-		pkNumber := p.PkNumber
 		if ls.exist(pkNumber) {
 			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d 长短信标志位重复",
 				s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId)
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(pkNumber, msgId, p.MsgContent[6:])
+		s.lsmLock.Unlock()
 		s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
 			s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
 
