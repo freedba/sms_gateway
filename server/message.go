@@ -49,10 +49,10 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	//s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
 
 	if p.TPUdhi == 1 { //长短信
-		s.lsLock.Lock()
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
 		pkTotal := p.PkTotal
+		s.lsLock.Lock()
 		ls := s.longSms.get(rand)
 		if ls != nil && ls.len() == pkTotal {
 			for i := uint8(1); i <= pkTotal; i++ {

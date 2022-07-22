@@ -642,6 +642,8 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		pkTotal := p.PkTotal
 		pkNumber := p.PkNumber
 		ls := s.longSms.get(rand)
+		s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
+			s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
 		if ls.exist(pkNumber) {
 			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d 长短信标志位重复",
 				s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId)
