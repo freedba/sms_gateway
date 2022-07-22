@@ -116,7 +116,7 @@ func Listen(sess *Sessions) {
 		_ = tc.SetKeepAlive(true)
 
 		sess.RemoteAddr = strings.Split(tc.RemoteAddr().String(), ":")[0]
-		logger.Debug().Msgf("New connection：%v, Peer ip ：%s", clientConn, sess.RemoteAddr)
+		logger.Debug().Msgf("New connection：%v, Peer ip：%s", clientConn, sess.RemoteAddr)
 
 		go HandleNewConn(clientConn, sess)
 	}
@@ -127,7 +127,6 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	var err error
 	var runId string
 	var data []byte
-	//var strPoint string
 
 	qLen := utils.GetAttr("qlen")
 	logger.Info().Msgf("队列缓冲值: %d", qLen)
@@ -538,24 +537,9 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	resp.SeqId = h.SeqId
 	count = atomic.AddUint64(&s.count, 1)
 
-	if !s.RateLimit.Available() {
-		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.FlowVelocity.Rate)
-		resp.Result = 8
-	} else if len(buf)+12 != int(h.TotalLen) {
-		s.Logger.Error().Msgf("账号(%s) buf len:%d + 12 != h.TotalLen:%d", runId, len(buf), h.TotalLen)
-		resp.Result = common.ErrnoSubmitInvalidMsgLength
-	} else if s.LastSeqId == h.SeqId && s.LastSeqId != 0 {
-		s.Logger.Error().Msgf("账号(%s) s.LastSeqId(%d) == h.SeqId(%d) && s.LastSeqId != 0",
-			runId, s.LastSeqId, h.SeqId)
-		resp.Result = common.ErrnoSubmitInvalidSequence
-	} else {
-		if err := p.UnPack(buf); err != nil {
-			s.Logger.Error().Msgf("账号(%s) p.UnPack(buf) error:%v", runId, err)
-			resp.Result = common.ErrnoSubmitInvalidStruct
-		}
-	}
-
+	resp.Result = p.UnPack(buf)
 	if resp.Result == 0 {
+		p.TotalLen = h.TotalLen
 		p.SeqId = h.SeqId
 		p.MsgId = resp.MsgId
 		resp.Result = s.VerifySubmit(p)
@@ -585,12 +569,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			}
 		}
 	} else {
-		if resp.Result == common.ErrnoSubmitInvalidMsgLength ||
-			resp.Result == common.ErrnoSubmitInvalidSequence ||
-			resp.Result == common.ErrnoSubmitInvalidStruct ||
-			resp.Result == common.ErrnoSubmitInvalidSrcId ||
-			resp.Result == common.ErrnoSubmitInvalidMsgSrc ||
-			resp.Result == common.ErrnoDeliverInvalidServiceId {
+		if resp.Result != common.ErrnoSubmitNotPassFlowControl {
 			s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
 			if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
@@ -611,11 +590,22 @@ EXIT:
 
 func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	runId := s.RunId
+	if !s.RateLimit.Available() {
+		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.FlowVelocity.Rate)
+		return common.ErrnoSubmitNotPassFlowControl
+	}
+
+	if s.LastSeqId == p.SeqId && s.LastSeqId != 0 {
+		s.Logger.Error().Msgf("账号(%s) s.LastSeqId(%d) == h.SeqId(%d) && s.LastSeqId != 0",
+			runId, s.LastSeqId, p.SeqId)
+		return common.ErrnoSubmitInvalidSequence
+	}
 
 	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 2 {
 		logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
 		return common.ErrnoSubmitInvalidStruct
 	}
+
 	if p.ServiceId.String() != s.Account.NickName {
 		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String()", runId)
 		return common.ErrnoDeliverInvalidServiceId
@@ -624,6 +614,18 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	if p.MsgSrc.String() != s.Account.NickName {
 		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String()", runId)
 		return common.ErrnoDeliverInvalidStruct
+	}
+
+	regexpStr := "^" + p.SrcId.String()
+	re := regexp.MustCompile(s.Account.CmppDestId)
+	if !re.MatchString(regexpStr) {
+		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ ^p.SrcId.String()", runId)
+		return common.ErrnoSubmitInvalidSrcId
+	}
+
+	if len(p.SrcId.String()) < len(s.Account.CmppDestId) {
+		logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
+		return common.ErrnoSubmitInvalidSrcId
 	}
 
 	if p.TPUdhi == 0 {
@@ -660,17 +662,6 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoSubmitInvalidStruct
 	}
 
-	regexpStr := "^" + p.SrcId.String()
-	re := regexp.MustCompile(s.Account.CmppDestId)
-	if !re.MatchString(regexpStr) {
-		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ ^p.SrcId.String()", runId)
-		return common.ErrnoSubmitInvalidSrcId
-	}
-
-	if len(p.SrcId.String()) < len(s.Account.CmppDestId) {
-		logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
-		return common.ErrnoSubmitInvalidSrcId
-	}
 	return 0
 }
 
