@@ -601,7 +601,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoSubmitInvalidSequence
 	}
 
-	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 2 {
+	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 1 {
 		logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
 		return common.ErrnoSubmitInvalidStruct
 	}
@@ -630,31 +630,28 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 
 	if p.TPUdhi == 0 {
 	} else if p.TPUdhi == 1 { //长短信检验
-		udhi := p.MsgContent[0:6]
-		rand := udhi[3]
+		byte4 := p.MsgContent[0:6][3]
 		msgId := strconv.FormatUint(p.MsgId, 10)
-		pkTotal := p.PkTotal
-		pkNumber := p.PkNumber
 		s.lsLock.Lock()
-		if !s.longSms.exist(rand) {
+		if !s.longSms.exist(byte4) {
 			ls := &LongSms{
 				Content: make(map[uint8][]byte),
 				MsgID:   make(map[uint8]string),
 				mLock:   new(sync.Mutex),
 			}
-			s.longSms.set(rand, ls)
+			s.longSms.set(byte4, ls)
 		}
-		ls := s.longSms.get(rand)
-		if ls.exist(pkNumber) {
-			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d 长短信标志位重复",
-				s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId)
+		ls := s.longSms.get(byte4)
+		if ls.exist(p.PkNumber) {
+			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d 长短信标志位重复",
+				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId)
 			return common.ErrnoSubmitInvalidStruct
 		}
-		ls.set(pkNumber, msgId, p.MsgContent[6:])
+		ls.set(p.PkNumber, msgId, p.MsgContent[6:])
 		s.lsLock.Unlock()
 		if utils.Debug {
-			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
-				s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
+			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
+				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
 		}
 	} else {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)

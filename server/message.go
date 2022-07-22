@@ -49,18 +49,18 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	//s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
 
 	if p.TPUdhi == 1 { //长短信
-		udhi := p.MsgContent[0:6]
-		rand := udhi[3]
+		byte4 := p.MsgContent[0:6][4]
+		//rand := udhi[3]
 		pkTotal := p.PkTotal
 		s.lsmLock.Lock()
-		ls := s.longSms.get(rand)
+		ls := s.longSms.get(byte4)
 		if ls != nil && ls.len() == pkTotal {
 			for i := uint8(1); i <= pkTotal; i++ {
 				ID, buf := ls.get(i)
 				sendMsgId = append(sendMsgId, ID)
 				content = append(content, buf...)
 			}
-			s.longSms.del(rand)
+			s.longSms.del(byte4)
 			flag = true
 			if utils.Debug {
 				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
@@ -93,17 +93,13 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		}
 		hsm.MobileContent = strings.Join(destTerminalId, ",")
 		hsm.SendMsgId = strings.Join(sendMsgId, ",")
-		//logger.Debug().Msgf("p.PkTotal:%d,sendMsgId:%s,hsm.MobileContent:%s,p.DestTerminalId:%v",
-		//	p.PkTotal, sendMsgId, hsm.MobileContent, p.DestTerminalId)
 		hsm.Wrapper(s)
 		count := atomic.AddInt64(&s.SubmitToQueueCount, 1)
 		if count%int64(utils.PeekInterval) == 0 {
-			s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, MsgId: %s, s.SubmitChan len: %d,"+
+			s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, sendMsgId: %s, s.SubmitChan len: %d,"+
 				"s.SubmitToQueueCount: %d, ", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), count)
-			s.Logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
-			//logger.Debug().Msgf("hsm.DevelopNo:%s",hsm.DevelopNo)
+			s.Logger.Debug().Msgf("长短信：s.longSms.len:%d,s.longSms:%+v", s.longSms.len(), s.longSms.LongSms)
 		}
-		s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
 	}
 }
 
