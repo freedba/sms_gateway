@@ -629,7 +629,6 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	}
 
 	if p.TPUdhi == 0 {
-
 	} else if p.TPUdhi == 1 { //长短信检验
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
