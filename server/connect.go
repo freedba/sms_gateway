@@ -631,6 +631,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
 		msgId := strconv.FormatUint(p.MsgId, 10)
+		s.lsLock.Lock()
 		if !s.longSms.exist(rand) {
 			ls := &LongSms{
 				Content: make(map[uint8][]byte),
@@ -650,6 +651,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(pkNumber, msgId, p.MsgContent[6:])
+		s.lsLock.Unlock()
 	} else {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
 		return common.ErrnoSubmitInvalidStruct
