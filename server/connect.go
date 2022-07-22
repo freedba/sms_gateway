@@ -42,6 +42,7 @@ type SrvConn struct {
 	CloseFlag         int32
 
 	longSms *LongSmsMap
+	lsLock  *sync.Mutex
 
 	deliverMsgMap         cmap.ConcurrentMap
 	deliverResendCountMap cmap.ConcurrentMap
@@ -49,7 +50,7 @@ type SrvConn struct {
 	ExitSrv         chan struct{}
 	hsmChan         chan HttpSubmitMessageInfo
 	mapKeyInChan    chan string
-	SubmitChan      chan cmpp.Submit
+	SubmitChan      chan *cmpp.Submit
 	deliverRespChan chan cmpp.DeliverResp
 	commandChan     chan []byte
 	deliverFakeChan chan []byte
@@ -133,7 +134,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s := &SrvConn{
 		conn:                  conn,
 		RemoteAddr:            sess.RemoteAddr,
-		SubmitChan:            make(chan cmpp.Submit, qLen),
+		SubmitChan:            make(chan *cmpp.Submit, qLen),
 		commandChan:           make(chan []byte, qLen),
 		hsmChan:               make(chan HttpSubmitMessageInfo, qLen),
 		deliverRespChan:       make(chan cmpp.DeliverResp, qLen),
@@ -147,6 +148,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 			LongSms: make(map[uint8]*LongSms),
 			mLock:   new(sync.Mutex),
 		},
+		lsLock: new(sync.Mutex),
 	}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)
@@ -575,7 +577,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		} else {
 			timer := time.NewTimer(utils.Timeout * 10)
 			select {
-			case s.SubmitChan <- *p:
+			case s.SubmitChan <- p:
 			case t := <-timer.C:
 				s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runId, t)
 				s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunId, p)
@@ -604,29 +606,6 @@ EXIT:
 		close(s.ExitSrv)
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
-}
-
-func (s *SrvConn) handleDeliverResp(data []byte) {
-	h := &cmpp.Header{}
-	h.UnPack(data[:common.CMPP_HEADER_SIZE])
-	buf := data[common.CMPP_HEADER_SIZE:]
-	runId := s.RunId
-	dr := &cmpp.DeliverResp{}
-	dr.UnPack(buf)
-	dr.SeqId = h.SeqId
-	if dr.Result != 0 {
-		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgId: %d",
-			runId, dr.Result, dr.MsgId)
-	}
-	timer := time.NewTimer(utils.Timeout)
-	defer timer.Stop()
-
-	select {
-	case s.deliverRespChan <- *dr:
-	case t := <-timer.C:
-		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
-	}
-	atomic.AddInt64(&s.deliverTaskCount, -1)
 }
 
 func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
@@ -685,8 +664,30 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
 		return common.ErrnoSubmitInvalidSrcId
 	}
-
 	return 0
+}
+
+func (s *SrvConn) handleDeliverResp(data []byte) {
+	h := &cmpp.Header{}
+	h.UnPack(data[:common.CMPP_HEADER_SIZE])
+	buf := data[common.CMPP_HEADER_SIZE:]
+	runId := s.RunId
+	dr := &cmpp.DeliverResp{}
+	dr.UnPack(buf)
+	dr.SeqId = h.SeqId
+	if dr.Result != 0 {
+		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgId: %d",
+			runId, dr.Result, dr.MsgId)
+	}
+	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
+
+	select {
+	case s.deliverRespChan <- *dr:
+	case t := <-timer.C:
+		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
+	}
+	atomic.AddInt64(&s.deliverTaskCount, -1)
 }
 
 func (s *SrvConn) LoopActiveTest(ctx context.Context) {

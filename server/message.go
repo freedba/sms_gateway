@@ -31,7 +31,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		select {
 		case p := <-s.SubmitChan:
 			s.waitGroup.Wrap(func() {
-				smsAssemble(&p, s)
+				smsAssemble(p, s)
 			})
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
@@ -47,12 +47,14 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	var content []byte
 	msgId := strconv.FormatUint(p.MsgId, 10)
 	//s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
+
 	if p.TPUdhi == 1 { //长短信
+		s.lsLock.Lock()
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
 		pkTotal := p.PkTotal
 		ls := s.longSms.get(rand)
-		if ls.len() == pkTotal {
+		if ls != nil && ls.len() == pkTotal {
 			for i := uint8(1); i <= pkTotal; i++ {
 				ID, buf := ls.get(i)
 				sendMsgId = append(sendMsgId, ID)
@@ -64,6 +66,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
 			}
 		}
+		s.lsLock.Unlock()
 		if !utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
