@@ -52,7 +52,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
 		pkTotal := p.PkTotal
-		s.lsLock.Lock()
+		s.lsmLock.Lock()
 		ls := s.longSms.get(rand)
 		if ls != nil && ls.len() == pkTotal {
 			for i := uint8(1); i <= pkTotal; i++ {
@@ -66,7 +66,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
 			}
 		}
-		s.lsLock.Unlock()
+		s.lsmLock.Unlock()
 		if utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
