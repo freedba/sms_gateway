@@ -94,7 +94,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		if s.IsClosing() || s.ReadLoopRunning == 0 {
 			s.Logger.Debug().Msgf("账号(%s) s.IsClosing:%v,s.ReadLoopRunning:%d",
 				s.RunId, s.IsClosing(), s.ReadLoopRunning)
-			exitFlag = false
+			exitFlag = true
 		}
 		//logger.Debug().Msgf("deliverNmc.MsgChan:%d,moNmc.MsgChan:%d",len(deliverNmc.MsgChan),len(moNmc.MsgChan))
 		select {
@@ -149,10 +149,12 @@ func (snd *deliverSender) consumeDeliverMsg() {
 				}
 			}
 		case msg := <-s.deliverFakeChan:
-			err = snd.msgWrite(1, msg)
-			if err != nil {
+			if err = snd.msgWrite(1, msg); err != nil {
 				s.Logger.Error().Msgf("账号(%s) msg return error: %v", s.RunId, err)
-				goto EXIT
+				exitFlag = true
+				if !utils.ChIsClosed(s.ExitSrv) {
+					close(s.ExitSrv)
+				}
 			}
 		case <-timer.C:
 			//s.Logger.Debug().Msgf("账号(%s) consumeDeliverMsg Tick at: %v", s.RunId, t)
