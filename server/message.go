@@ -15,11 +15,8 @@ import (
 )
 
 func SubmitMsgIdToQueue(s *SrvConn) {
-	//flag := false
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
-	//var sendMsgId []string
-	//var content []byte
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.waitGroup.Wrap(func() { SubmitMsgIdToDB(ctx, s) }) //nsqd集群失败处理协程
@@ -34,7 +31,7 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		select {
 		case p := <-s.SubmitChan:
 			s.waitGroup.Wrap(func() {
-				smsAssemble(p, s)
+				smsAssemble(&p, s)
 			})
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
@@ -44,7 +41,7 @@ EXIT:
 	s.Logger.Debug().Msgf("账号(%s) Exiting SubmitMsgIdToQueue...", s.RunId)
 }
 
-func smsAssemble(p cmpp.Submit, s *SrvConn) {
+func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	flag := false
 	var sendMsgId []string
 	var content []byte

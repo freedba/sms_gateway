@@ -646,11 +646,9 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoDeliverInvalidStruct
 	}
 
-	if p.TPPid > 1 {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
-		return 1
-	}
-	if p.TPUdhi == 1 { //长短信检验
+	if p.TPUdhi == 0 {
+
+	} else if p.TPUdhi == 1 { //长短信检验
 		udhi := p.MsgContent[0:6]
 		rand := udhi[3]
 		msgId := strconv.FormatUint(p.MsgId, 10)
@@ -666,10 +664,14 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		pkNumber := p.PkNumber
 		ls := s.longSms.get(rand)
 		if ls.exist(pkNumber) {
-			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d,msgID：%s, 长短信标志位重复", s.RunId, pkTotal, pkNumber, rand, msgId)
+			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d, msgID string:%s, msgID:%d 长短信标志位重复",
+				s.RunId, pkTotal, pkNumber, rand, msgId, p.MsgId)
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(pkNumber, msgId, p.MsgContent[6:])
+	} else {
+		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
+		return common.ErrnoSubmitInvalidStruct
 	}
 
 	regexpStr := "^" + p.SrcId.String()
