@@ -58,7 +58,7 @@ type SrvConn struct {
 	FlowVelocity *utils.FlowVelocity
 	RateLimit    *utils.RateLimit
 
-	SubmitToQueueCount  int
+	SubmitToQueueCount  int64
 	DeliverSendCount    int
 	SeqId               uint32
 	LastSeqId           uint32
@@ -516,29 +516,6 @@ EXIT:
 	s.Logger.Debug().Msgf("账号(%s) Exiting HandleCommand...", runId)
 }
 
-func (s *SrvConn) handleDeliverResp(data []byte) {
-	h := &cmpp.Header{}
-	h.UnPack(data[:common.CMPP_HEADER_SIZE])
-	buf := data[common.CMPP_HEADER_SIZE:]
-	runId := s.RunId
-	dr := &cmpp.DeliverResp{}
-	dr.UnPack(buf)
-	dr.SeqId = h.SeqId
-	if dr.Result != 0 {
-		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgId: %d",
-			runId, dr.Result, dr.MsgId)
-	}
-	timer := time.NewTimer(utils.Timeout)
-	defer timer.Stop()
-
-	select {
-	case s.deliverRespChan <- *dr:
-	case t := <-timer.C:
-		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
-	}
-	atomic.AddInt64(&s.deliverTaskCount, -1)
-}
-
 func (s *SrvConn) handleSubmit(data []byte) {
 	var count uint64
 	var err error
@@ -629,6 +606,29 @@ EXIT:
 	atomic.AddInt64(&s.submitTaskCount, -1)
 }
 
+func (s *SrvConn) handleDeliverResp(data []byte) {
+	h := &cmpp.Header{}
+	h.UnPack(data[:common.CMPP_HEADER_SIZE])
+	buf := data[common.CMPP_HEADER_SIZE:]
+	runId := s.RunId
+	dr := &cmpp.DeliverResp{}
+	dr.UnPack(buf)
+	dr.SeqId = h.SeqId
+	if dr.Result != 0 {
+		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgId: %d",
+			runId, dr.Result, dr.MsgId)
+	}
+	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
+
+	select {
+	case s.deliverRespChan <- *dr:
+	case t := <-timer.C:
+		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
+	}
+	atomic.AddInt64(&s.deliverTaskCount, -1)
+}
+
 func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	runId := s.RunId
 
@@ -650,6 +650,28 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
 		return 1
 	}
+	if p.TPUdhi == 1 { //长短信检验
+		udhi := p.MsgContent[0:6]
+		rand := udhi[3]
+		msgId := strconv.FormatUint(p.MsgId, 10)
+		if !s.longSms.exist(rand) {
+			ls := &LongSms{
+				Content: make(map[uint8][]byte),
+				MsgID:   make(map[uint8]string),
+				mLock:   new(sync.Mutex),
+			}
+			s.longSms.set(rand, ls)
+		}
+		pkTotal := p.PkTotal
+		pkNumber := p.PkNumber
+		ls := s.longSms.get(rand)
+		if ls.exist(pkNumber) {
+			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, rand:%d,msgID：%s, 长短信标志位重复", s.RunId, pkTotal, pkNumber, rand, msgId)
+			return common.ErrnoSubmitInvalidStruct
+		}
+		ls.set(pkNumber, msgId, p.MsgContent[6:])
+	}
+
 	regexpStr := "^" + p.SrcId.String()
 	re := regexp.MustCompile(s.Account.CmppDestId)
 	if !re.MatchString(regexpStr) {

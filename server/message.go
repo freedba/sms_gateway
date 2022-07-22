@@ -5,20 +5,21 @@ import (
 	"encoding/json"
 	"math"
 	"sms_lib/models"
+	"sms_lib/protocol/cmpp"
 	"sms_lib/protocol/common"
 	"sms_lib/utils"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
 func SubmitMsgIdToQueue(s *SrvConn) {
-	flag := false
+	//flag := false
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
-	var sendMsgId []string
-	var content []byte
+	//var sendMsgId []string
+	//var content []byte
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.waitGroup.Wrap(func() { SubmitMsgIdToDB(ctx, s) }) //nsqd集群失败处理协程
@@ -32,80 +33,78 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		}
 		select {
 		case p := <-s.SubmitChan:
-			msgId := strconv.FormatUint(p.MsgId, 10)
-			s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
-			if p.TPUdhi == 1 { //长短信
-				udhi := p.MsgContent[0:6]
-				rand := udhi[3]
-				if !s.longSms.exist(rand) {
-					ls := &LongSms{
-						Content: make(map[uint8][]byte),
-						MsgID:   make(map[uint8]string),
-						mLock:   new(sync.Mutex),
-					}
-					s.longSms.set(rand, ls)
-				}
-				pkTotal := p.PkTotal
-				pkNumber := p.PkNumber
-				s.Logger.Debug().Msgf("pkTotal:%d, pkNumber:%d, rand:%d, s.longSms len:%d, s.longSms:%+v", pkTotal, pkNumber, rand, s.longSms.len(), s.longSms.LongSms)
-				ls := s.longSms.get(rand)
-				ls.set(pkNumber, msgId, p.MsgContent[6:])
-				if ls.len() == pkTotal {
-					for i := uint8(1); i <= pkTotal; i++ {
-						ID, buf := ls.get(i)
-						sendMsgId = append(sendMsgId, ID)
-						content = append(content, buf...)
-					}
-					s.longSms.del(rand)
-					flag = true
-					s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
-				}
-				s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
-			} else if p.TPUdhi == 0 { //短短信
-				content = p.MsgContent
-				sendMsgId = append(sendMsgId, msgId)
-				flag = true
-			}
-
-			if flag {
-				hsm := &HttpSubmitMessageInfo{}
-				var destTerminalId []string
-				if p.MsgFmt == common.UCS2 {
-					content = utils.Ucs2ToUtf8(content)
-				} else if p.MsgFmt == common.GB18030 {
-					content = utils.GbkToUtf8(content)
-				} else {
-
-				}
-				hsm.TaskContent = string(content)
-				hsm.DevelopNo = p.SrcId.String()[len(s.Account.CmppDestId):]
-				for _, v := range p.DestTerminalId {
-					destTerminalId = append(destTerminalId, v.String())
-				}
-				hsm.MobileContent = strings.Join(destTerminalId, ",")
-				hsm.SendMsgId = strings.Join(sendMsgId, ",")
-				//logger.Debug().Msgf("p.PkTotal:%d,sendMsgId:%s,hsm.MobileContent:%s,p.DestTerminalId:%v",
-				//	p.PkTotal, sendMsgId, hsm.MobileContent, p.DestTerminalId)
-				hsm.Wrapper(s)
-				s.SubmitToQueueCount++
-				if s.SubmitToQueueCount%utils.PeekInterval == 0 {
-					s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, MsgId: %s, s.SubmitChan len: %d,"+
-						"s.SubmitToQueueCount: %d, ", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), s.SubmitToQueueCount)
-					s.Logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
-					//logger.Debug().Msgf("hsm.DevelopNo:%s",hsm.DevelopNo)
-				}
-				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
-				flag = false
-				sendMsgId = nil
-				content = nil
-
-			}
+			s.waitGroup.Wrap(func() {
+				smsAssemble(p, s)
+			})
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToQueue Tick at", s.RunId)
 		}
 	}
 EXIT:
 	s.Logger.Debug().Msgf("账号(%s) Exiting SubmitMsgIdToQueue...", s.RunId)
+}
+
+func smsAssemble(p cmpp.Submit, s *SrvConn) {
+	flag := false
+	var sendMsgId []string
+	var content []byte
+	msgId := strconv.FormatUint(p.MsgId, 10)
+	//s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
+	if p.TPUdhi == 1 { //长短信
+		udhi := p.MsgContent[0:6]
+		rand := udhi[3]
+		pkTotal := p.PkTotal
+		ls := s.longSms.get(rand)
+		if ls.len() == pkTotal {
+			for i := uint8(1); i <= pkTotal; i++ {
+				ID, buf := ls.get(i)
+				sendMsgId = append(sendMsgId, ID)
+				content = append(content, buf...)
+			}
+			s.longSms.del(rand)
+			flag = true
+			if !utils.Debug {
+				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
+			}
+		}
+		if !utils.Debug {
+			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
+		}
+	} else if p.TPUdhi == 0 { //短短信
+		content = p.MsgContent
+		sendMsgId = append(sendMsgId, msgId)
+		flag = true
+	}
+
+	if flag {
+		hsm := &HttpSubmitMessageInfo{}
+		var destTerminalId []string
+		if p.MsgFmt == common.UCS2 {
+			content = utils.Ucs2ToUtf8(content)
+		} else if p.MsgFmt == common.GB18030 {
+			content = utils.GbkToUtf8(content)
+		} else {
+
+		}
+		hsm.TaskContent = string(content)
+		hsm.DevelopNo = p.SrcId.String()[len(s.Account.CmppDestId):]
+		for _, v := range p.DestTerminalId {
+			destTerminalId = append(destTerminalId, v.String())
+		}
+		hsm.MobileContent = strings.Join(destTerminalId, ",")
+		hsm.SendMsgId = strings.Join(sendMsgId, ",")
+		//logger.Debug().Msgf("p.PkTotal:%d,sendMsgId:%s,hsm.MobileContent:%s,p.DestTerminalId:%v",
+		//	p.PkTotal, sendMsgId, hsm.MobileContent, p.DestTerminalId)
+		hsm.Wrapper(s)
+		count := atomic.AddInt64(&s.SubmitToQueueCount, 1)
+		if count%int64(utils.PeekInterval) == 0 {
+			s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, MsgId: %s, s.SubmitChan len: %d,"+
+				"s.SubmitToQueueCount: %d, ", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), count)
+			s.Logger.Debug().Msgf("未处理完的长短信：s.longsms.len:%d,s.longsms:%+v", s.longSms.len(), s.longSms)
+			//logger.Debug().Msgf("hsm.DevelopNo:%s",hsm.DevelopNo)
+		}
+		s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
+	}
 }
 
 func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
@@ -163,8 +162,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	hsm.Extra = `{"from":"cmppserver"}`
 	hsm.TaskNo = utils.GetUuid()
 	hsm.SubmitTime = time.Now().Unix()
-	err := hsm.enQueue(topicName, s.RunId)
-	if err != nil {
+	if err := hsm.enQueue(topicName, s.RunId); err != nil {
 		select {
 		case s.hsmChan <- *hsm: //入nsq失败后入mysql
 		case t := <-timer.C:
@@ -181,8 +179,7 @@ func (hsm HttpSubmitMessageInfo) enQueue(topicName string, runId string) error {
 		return err
 	}
 
-	err = models.Prn.PubMgr.Publish(topicName, b)
-	if err != nil {
+	if err = models.Prn.PubMgr.Publish(topicName, b); err != nil {
 		logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", runId, err, topicName)
 		return err
 	}

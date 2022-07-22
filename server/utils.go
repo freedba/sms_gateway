@@ -106,6 +106,13 @@ func (ls *LongSms) get(k uint8) (msgID string, content []byte) {
 	return msgID, content
 }
 
+func (ls *LongSms) exist(k uint8) bool {
+	ls.mLock.Lock()
+	ls.mLock.Unlock()
+	_, ok := ls.MsgID[k]
+	return ok
+}
+
 type LongSmsMap struct {
 	LongSms   map[uint8]*LongSms
 	Timestamp int64
