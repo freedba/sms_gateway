@@ -70,6 +70,8 @@ EXIT:
 	atomic.StoreInt32(&s.deliverSenderExit, 1)
 	if atomic.LoadInt32(&s.ReadLoopRunning) == 1 {
 		s.Logger.Debug().Msgf("账号(%s) close(c.ExitSrv)")
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
 		if !utils.ChIsClosed(s.ExitSrv) {
 			close(s.ExitSrv)
 		}
@@ -129,9 +131,11 @@ func (snd *deliverSender) consumeDeliverMsg() {
 					logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", s.RunId, err, topicName)
 				}
 				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
+				s.mutex.Lock()
 				if !utils.ChIsClosed(s.ExitSrv) {
 					close(s.ExitSrv)
 				}
+				s.mutex.Unlock()
 			}
 		case moMsg := <-moNmc.MsgChan:
 			//fix me
@@ -144,9 +148,11 @@ func (snd *deliverSender) consumeDeliverMsg() {
 					logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", s.RunId, err, topicName)
 				}
 				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
+				s.mutex.Lock()
 				if !utils.ChIsClosed(s.ExitSrv) {
 					close(s.ExitSrv)
 				}
+				s.mutex.Unlock()
 			}
 		case msg := <-s.deliverFakeChan:
 			if err = snd.msgWrite(1, msg); err != nil {
@@ -257,8 +263,9 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		return err
 	}
 	mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(newSeqId))
-	s.mapKeyInChan <- mapKey // 仅用作回执发送缓冲控制
 	s.deliverMsgMap.Set(mapKey, *d)
+	s.mapKeyInChan <- mapKey // 仅用作回执发送缓冲控制
+
 	s.DeliverSendCount++
 	if s.DeliverSendCount%utils.PeekInterval == 0 {
 		s.Logger.Debug().Msgf("账号(%s) 推送回执，SeqId: %d, s.DeliverSendCount: %d, s.deliverMsgMap.Count:%d,"+

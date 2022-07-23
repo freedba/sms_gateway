@@ -50,7 +50,6 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 
 	if p.TPUdhi == 1 { //长短信
 		byte4 := p.MsgContent[0:6][4]
-		//rand := udhi[3]
 		pkTotal := p.PkTotal
 		s.lsmLock.Lock()
 		ls := s.longSms.get(byte4)
@@ -70,7 +69,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		if utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
-	} else if p.TPUdhi == 0 { //短短信
+	} else if p.TPUdhi == 0 { //普通短信
 		content = p.MsgContent
 		sendMsgId = append(sendMsgId, msgId)
 		flag = true
@@ -108,8 +107,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	discard := true
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
-	//developCode := string(p.SrcId.Data[len(s.Account.CmppDestId):])
-	//hsm := &HttpSubmitMessageInfo{}
+
 	hsm.Uid = s.Account.Id
 	businessId := s.Account.BusinessId
 	if businessId == 5 {

@@ -32,6 +32,7 @@ type SrvConn struct {
 	rw            *socket.PacketRW
 	waitGroup     utils.WaitGroupWrapper
 	terminateSent int32
+	mutex         *sync.Mutex
 
 	addr       string
 	RemoteAddr string
@@ -150,6 +151,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		},
 		lsLock:  new(sync.Mutex),
 		lsmLock: new(sync.Mutex),
+		mutex:   new(sync.Mutex),
 	}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)
@@ -461,9 +463,11 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				if err := r.IOWrite(s.rw); err != nil {
 					s.Logger.Error().Msgf("发送数据失败,error:%v", err)
 					s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
+					s.mutex.Lock()
 					if !utils.ChIsClosed(s.ExitSrv) {
 						close(s.ExitSrv)
 					}
+					s.mutex.Unlock()
 				}
 				atomic.StoreUint32(&s.activeTestCount, 0)
 
@@ -582,6 +586,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	return
 EXIT:
 	s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if !utils.ChIsClosed(s.ExitSrv) {
 		close(s.ExitSrv)
 	}
@@ -745,9 +751,12 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST) send try: %d and "+
 				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runId, sendTry, timer1)
 			s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
+
+			s.mutex.Lock()
 			if !utils.ChIsClosed(s.ExitSrv) {
 				close(s.ExitSrv)
 			}
+			s.mutex.Unlock()
 		}
 		count++
 		timer1 = int(atomic.AddUint32(&s.activeTestCount, 1))
