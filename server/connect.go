@@ -463,11 +463,9 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				if err := r.IOWrite(s.rw); err != nil {
 					s.Logger.Error().Msgf("发送数据失败,error:%v", err)
 					s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
-					s.mutex.Lock()
-					if !utils.ChIsClosed(s.ExitSrv) {
+					if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 						close(s.ExitSrv)
 					}
-					s.mutex.Unlock()
 				}
 				atomic.StoreUint32(&s.activeTestCount, 0)
 
@@ -586,9 +584,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	return
 EXIT:
 	s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	if !utils.ChIsClosed(s.ExitSrv) {
+	if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 		close(s.ExitSrv)
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
@@ -752,11 +748,9 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runId, sendTry, timer1)
 			s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
 
-			s.mutex.Lock()
-			if !utils.ChIsClosed(s.ExitSrv) {
+			if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 				close(s.ExitSrv)
 			}
-			s.mutex.Unlock()
 		}
 		count++
 		timer1 = int(atomic.AddUint32(&s.activeTestCount, 1))

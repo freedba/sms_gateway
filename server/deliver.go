@@ -70,9 +70,7 @@ EXIT:
 	atomic.StoreInt32(&s.deliverSenderExit, 1)
 	if atomic.LoadInt32(&s.ReadLoopRunning) == 1 {
 		s.Logger.Debug().Msgf("账号(%s) close(c.ExitSrv)")
-		s.mutex.Lock()
-		defer s.mutex.Unlock()
-		if !utils.ChIsClosed(s.ExitSrv) {
+		if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 			close(s.ExitSrv)
 		}
 	}
@@ -131,11 +129,9 @@ func (snd *deliverSender) consumeDeliverMsg() {
 					logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", s.RunId, err, topicName)
 				}
 				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
-				s.mutex.Lock()
-				if !utils.ChIsClosed(s.ExitSrv) {
+				if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 					close(s.ExitSrv)
 				}
-				s.mutex.Unlock()
 			}
 		case moMsg := <-moNmc.MsgChan:
 			//fix me
@@ -148,17 +144,15 @@ func (snd *deliverSender) consumeDeliverMsg() {
 					logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", s.RunId, err, topicName)
 				}
 				s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", s.RunId)
-				s.mutex.Lock()
-				if !utils.ChIsClosed(s.ExitSrv) {
+				if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 					close(s.ExitSrv)
 				}
-				s.mutex.Unlock()
 			}
 		case msg := <-s.deliverFakeChan:
 			if err = snd.msgWrite(1, msg); err != nil {
 				s.Logger.Error().Msgf("账号(%s) msg return error: %v", s.RunId, err)
 				exitFlag = true
-				if !utils.ChIsClosed(s.ExitSrv) {
+				if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
 					close(s.ExitSrv)
 				}
 			}
