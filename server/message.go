@@ -51,7 +51,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	if p.TPUdhi == 1 { //长短信
 		byte4 := p.MsgContent[0:6][4]
 		pkTotal := p.PkTotal
-
+		logger.Debug().Msgf("byte4:%d,s.longSms:%+v", byte4, s.longSms.LongSms)
 		s.lsmLock.Lock()
 		ls := s.longSms.get(byte4)
 		if ls != nil && ls.len() == pkTotal {
