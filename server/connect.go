@@ -648,8 +648,8 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		}
 		ls := s.longSms.get(byte4)
 		if ls.exist(p.PkNumber) {
-			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d 长短信标志位重复",
-				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId)
+			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d 长短信标志位重复,s.longSms:%+v",
+				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.longSms.LongSms)
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(p.PkNumber, msgId, p.MsgContent[6:])
