@@ -68,7 +68,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		}
 		s.lsmLock.Unlock()
 
-		if !utils.Debug {
+		if utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
 	} else if p.TPUdhi == 0 { //普通短信
