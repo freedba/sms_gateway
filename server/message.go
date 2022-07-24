@@ -46,29 +46,29 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	var sendMsgId []string
 	var content []byte
 	msgId := strconv.FormatUint(p.MsgId, 10)
-	//s.Logger.Debug().Msgf("s.longsms len:%d, s.longsms:%+v", s.longSms.len(), s.longSms.LongSms)
-
 	if p.TPUdhi == 1 { //长短信
-		byte4 := p.MsgContent[0:6][4]
+		byte4 := p.MsgContent[0:6][3]
 		pkTotal := p.PkTotal
-		logger.Debug().Msgf("byte4:%d,s.longSms:%+v", byte4, s.longSms.LongSms)
-		s.lsmLock.Lock()
-		ls := s.longSms.get(byte4)
+		if utils.Debug {
+			s.Logger.Debug().Msgf("udhi:%v,byte4:%d", p.MsgContent[0:6], byte4)
+		}
+		s.lsmLock.Lock() // 保证一个协程组合长短信
+		ls := s.lsm.get(byte4)
 		if ls != nil && ls.len() == pkTotal {
 			for i := uint8(1); i <= pkTotal; i++ {
 				ID, buf := ls.get(i)
 				sendMsgId = append(sendMsgId, ID)
 				content = append(content, buf...)
 			}
-			s.longSms.del(byte4)
+			s.lsm.del(byte4)
 			flag = true
 			if utils.Debug {
-				s.Logger.Debug().Msgf("组合成长短信msgID：%s", sendMsgId)
+				s.Logger.Debug().Msgf("组合成长短信msgID：%s,s.longSms.len:%d", sendMsgId, s.lsm.len())
 			}
 		}
 		s.lsmLock.Unlock()
 
-		if utils.Debug {
+		if !utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
 	} else if p.TPUdhi == 0 { //普通短信
@@ -87,6 +87,9 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		} else {
 
 		}
+		if utils.Debug {
+			s.Logger.Debug().Msgf("长短信内容：%s", string(content))
+		}
 		hsm.TaskContent = string(content)
 		hsm.DevelopNo = p.SrcId.String()[len(s.Account.CmppDestId):]
 		for _, v := range p.DestTerminalId {
@@ -99,7 +102,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		if count%int64(utils.PeekInterval) == 0 {
 			s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, sendMsgId: %s, s.SubmitChan len: %d,"+
 				"s.SubmitToQueueCount: %d, ", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), count)
-			s.Logger.Debug().Msgf("长短信：s.longSms.len:%d,s.longSms:%+v", s.longSms.len(), s.longSms.LongSms)
+			s.Logger.Debug().Msgf("长短信：s.longSms.len:%d", s.lsm.len())
 		}
 	}
 }

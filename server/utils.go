@@ -108,7 +108,7 @@ func (ls *LongSms) get(k uint8) (msgID string, content []byte) {
 
 func (ls *LongSms) exist(k uint8) bool {
 	ls.mLock.Lock()
-	ls.mLock.Unlock()
+	defer ls.mLock.Unlock()
 	_, ok := ls.MsgID[k]
 	return ok
 }
@@ -117,6 +117,12 @@ type LongSmsMap struct {
 	LongSms   map[uint8]*LongSms
 	Timestamp int64
 	mLock     *sync.Mutex
+}
+
+func (lsm *LongSmsMap) print() map[uint8]*LongSms {
+	lsm.mLock.Lock()
+	defer lsm.mLock.Unlock()
+	return lsm.LongSms
 }
 
 func (lsm *LongSmsMap) get(k uint8) *LongSms {
@@ -137,14 +143,14 @@ func (lsm *LongSmsMap) set(k uint8, v *LongSms) {
 
 func (lsm *LongSmsMap) exist(k uint8) bool {
 	lsm.mLock.Lock()
-	lsm.mLock.Unlock()
+	defer lsm.mLock.Unlock()
 	_, ok := lsm.LongSms[k]
 	return ok
 }
 
 func (lsm *LongSmsMap) del(k uint8) {
 	lsm.mLock.Lock()
-	lsm.mLock.Unlock()
+	defer lsm.mLock.Unlock()
 	delete(lsm.LongSms, k)
 }
 

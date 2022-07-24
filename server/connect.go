@@ -42,7 +42,7 @@ type SrvConn struct {
 	deliverSenderExit int32
 	CloseFlag         int32
 
-	longSms *LongSmsMap
+	lsm     *LongSmsMap
 	lsLock  *sync.Mutex
 	lsmLock *sync.Mutex
 
@@ -145,7 +145,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		deliverMsgMap:         cmap.New(),
 		deliverResendCountMap: cmap.New(),
 		rw:                    socket.NewPacketRW(conn),
-		longSms: &LongSmsMap{
+		lsm: &LongSmsMap{
 			LongSms: make(map[uint8]*LongSms),
 			mLock:   new(sync.Mutex),
 		},
@@ -555,7 +555,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 
 	if count%uint64(utils.PeekInterval) == 0 {
 		s.Logger.Debug().Msgf("账号(%s) 收到消息提交(CMPP_SUBMIT), count: %d,resp.SeqId:%d,resp.MsgId:%d,"+
-			"s.submitTaskCount:%d", runId, s.count, resp.SeqId, resp.MsgId, atomic.LoadInt64(&s.submitTaskCount))
+			"s.submitTaskCount:%d,s.SubmitChan len:%d", runId, s.count, resp.SeqId, resp.MsgId,
+			atomic.LoadInt64(&s.submitTaskCount), len(s.SubmitChan))
 	}
 
 	s.LastSeqId = h.SeqId
@@ -638,24 +639,26 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		msgId := strconv.FormatUint(p.MsgId, 10)
 		s.lsLock.Lock()
 		defer s.lsLock.Unlock()
-		if !s.longSms.exist(byte4) {
+		if !s.lsm.exist(byte4) {
 			ls := &LongSms{
 				Content: make(map[uint8][]byte),
 				MsgID:   make(map[uint8]string),
 				mLock:   new(sync.Mutex),
 			}
-			s.longSms.set(byte4, ls)
+			s.lsm.set(byte4, ls)
 		}
-		ls := s.longSms.get(byte4)
+		ls := s.lsm.get(byte4)
 		if ls.exist(p.PkNumber) {
-			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d 长短信标志位重复,s.longSms:%+v",
-				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.longSms.LongSms)
+			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d 长短信标志位重复",
+				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId)
+			id, content := ls.get(p.PkNumber)
+			s.Logger.Error().Msgf("old msgId:%s,content:%v", id, content)
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(p.PkNumber, msgId, p.MsgContent[6:])
 		if utils.Debug {
-			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
-				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)
+			s.Logger.Debug().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d, s.longSms len:%d",
+				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.lsm.len())
 		}
 	} else {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)

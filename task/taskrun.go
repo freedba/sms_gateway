@@ -78,6 +78,17 @@ func LoopSrvMain() {
 	server.EtcdCli.LeaseGrant(30)
 	go server.EtcdCli.LeaseRenew()
 
+	debug := utils.GetEnv("DEBUG")
+	if debug != "" {
+		if debug == "1" {
+			utils.Debug = true
+		} else {
+			utils.Debug = false
+		}
+	} else {
+		utils.Debug = config.GetDebug()
+	}
+
 	var topics []string
 	models.Prn, err = models.NewTopicPubMgr(topics)
 	if err != nil {
