@@ -368,6 +368,7 @@ func (s *SrvConn) loopMakeMsgId(ctx context.Context) {
 		utils.ResetTimer(timer, timeout)
 		select {
 		case <-ctx.Done():
+			s.Logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...", s.RunId)
 			return
 		case msgIdChan <- GenerateMsgID():
 		case <-timer.C:
@@ -572,6 +573,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		}
 	} else {
 		if resp.Result != common.ErrnoSubmitNotPassFlowControl {
+			time.Sleep(time.Duration(1) * time.Second)
 			s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
 			if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
@@ -635,6 +637,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		byte4 := p.MsgContent[0:6][3]
 		msgId := strconv.FormatUint(p.MsgId, 10)
 		s.lsLock.Lock()
+		defer s.lsLock.Unlock()
 		if !s.longSms.exist(byte4) {
 			ls := &LongSms{
 				Content: make(map[uint8][]byte),
@@ -650,7 +653,6 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 			return common.ErrnoSubmitInvalidStruct
 		}
 		ls.set(p.PkNumber, msgId, p.MsgContent[6:])
-		s.lsLock.Unlock()
 		if utils.Debug {
 			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d, s.longSms len:%d, s.longSms:%+v",
 				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.longSms.len(), s.longSms.LongSms)

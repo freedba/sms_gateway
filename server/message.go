@@ -51,6 +51,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	if p.TPUdhi == 1 { //长短信
 		byte4 := p.MsgContent[0:6][4]
 		pkTotal := p.PkTotal
+
 		s.lsmLock.Lock()
 		ls := s.longSms.get(byte4)
 		if ls != nil && ls.len() == pkTotal {
@@ -66,6 +67,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 			}
 		}
 		s.lsmLock.Unlock()
+
 		if utils.Debug {
 			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
 		}
