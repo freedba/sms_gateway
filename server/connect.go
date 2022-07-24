@@ -464,9 +464,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				if err := r.IOWrite(s.rw); err != nil {
 					s.Logger.Error().Msgf("发送数据失败,error:%v", err)
 					s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
-					if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
-						close(s.ExitSrv)
-					}
+					utils.CloseChan(&s.ExitSrv, s.mutex)
 				}
 				atomic.StoreUint32(&s.activeTestCount, 0)
 
@@ -587,9 +585,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	return
 EXIT:
 	s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
-	if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
-		close(s.ExitSrv)
-	}
+	utils.CloseChan(&s.ExitSrv, s.mutex)
 	atomic.AddInt64(&s.submitTaskCount, -1)
 }
 
@@ -661,7 +657,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.lsm.len())
 		}
 	} else {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息TPPid > 1", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的TPPid值不合法:%d", runId, p.TPPid)
 		return common.ErrnoSubmitInvalidStruct
 	}
 
@@ -753,9 +749,7 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runId, sendTry, timer1)
 			s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
 
-			if !utils.ChIsClosed(s.ExitSrv, s.mutex) {
-				close(s.ExitSrv)
-			}
+			utils.CloseChan(&s.ExitSrv, s.mutex)
 		}
 		count++
 		timer1 = int(atomic.AddUint32(&s.activeTestCount, 1))
