@@ -50,7 +50,7 @@ func (sess *Sessions) Close(user string) {
 			runId := user + ":" + fmt.Sprintf("%p", s.conn)
 			logger.Debug().Msgf("关闭账号:%s,close(s.ExitSrv)", runId)
 			if !utils.ChIsClosed(s.ExitSrv) {
-				close(s.ExitSrv)
+				utils.CloseChan(&s.ExitSrv, s.mutex)
 			}
 		}
 	}

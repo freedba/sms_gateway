@@ -20,9 +20,7 @@ func signalHandle(sess *Sessions) {
 			s := sess.Users[user][i]
 			runId := user + ":" + fmt.Sprintf("%p", s.conn)
 			logger.Debug().Msgf("账号(%s) 关闭连接,close(s.ExitSrv)", runId)
-			if !utils.ChIsClosed(s.ExitSrv) {
-				close(s.ExitSrv)
-			}
+			utils.CloseChan(&s.ExitSrv)
 		}
 	}
 
