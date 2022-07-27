@@ -20,6 +20,9 @@ type Sessions struct {
 func (sess *Sessions) GetUserConn(name string) int {
 	var conn int64
 	keyMaps := EtcdCli.GetPrefix("/SMSGateway")
+	if keyMaps == nil {
+
+	}
 	for k, v := range keyMaps {
 		logger.Debug().Msgf("key: %s, val: %s, name: %s", k, v, name)
 		if bytes.Contains([]byte(k), []byte(name)) {

@@ -117,6 +117,7 @@ func (self *EtcdClient) GetPrefix(key string) map[string]string {
 	resp, err := kv.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
 		logger.Error().Msgf("cli.get error: %v", err)
+		return keyMap
 	}
 	for _, ev := range resp.Kvs {
 		keyMap[string(ev.Key)] = string(ev.Value)

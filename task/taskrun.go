@@ -31,7 +31,6 @@ func ServerSupervise(sess *server.Sessions) {
 		utils.PrintMemStats()
 
 		server.EtcdCli.LeaseTTL()
-		server.EtcdCli.GetPrefix("/SMSGateway")
 
 		if utils.GetCpuPercent() > threshold {
 			logger.Warn().Msgf("当前节点cpu使用率已超%2.f%%,负载过高", threshold)
