@@ -572,7 +572,6 @@ func (s *SrvConn) handleSubmit(data []byte) {
 		}
 	} else {
 		if resp.Result != common.ErrnoSubmitNotPassFlowControl {
-			time.Sleep(time.Duration(1) * time.Second)
 			s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
 			if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
@@ -607,13 +606,13 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoSubmitInvalidStruct
 	}
 
-	if p.ServiceId.String() != s.Account.NickName {
-		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String()", runId)
-		return common.ErrnoDeliverInvalidServiceId
-	}
+	//if p.ServiceId.String() != s.Account.NickName {
+	//	logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String: %s", runId, p.ServiceId.String())
+	//	return common.ErrnoDeliverInvalidServiceId
+	//}
 
 	if p.MsgSrc.String() != s.Account.NickName {
-		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String()", runId)
+		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.MsgSrc.String: %s", runId, p.MsgSrc.String())
 		return common.ErrnoDeliverInvalidStruct
 	}
 
