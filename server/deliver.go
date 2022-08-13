@@ -17,8 +17,8 @@ import (
 )
 
 type deliverSender struct {
-	deliverNmc *models.NsqMsgChan
-	moNmc      *models.NsqMsgChan
+	deliverNmc *models.MessageHandler
+	moNmc      *models.MessageHandler
 	wg         *sync.WaitGroup
 	s          *SrvConn
 	stopCh     chan struct{}
@@ -29,7 +29,7 @@ func DeliverPush(s *SrvConn) {
 	cfg := config.GetTopicPrefix()
 	uid := s.Account.Id
 	user := s.Account.NickName
-	var moNmc *models.NsqMsgChan
+	var moNmc *models.MessageHandler
 	var wg sync.WaitGroup
 	var mutex = sync.Mutex{}
 	var snd *deliverSender
@@ -104,13 +104,11 @@ func (snd *deliverSender) consumeDeliverMsg() {
 
 		if exitFlag {
 			if atomic.LoadInt32(&deliverNmc.StopFlag) == 0 {
-				deliverNmc.Consumer.Stop()
-				atomic.StoreInt32(&deliverNmc.StopFlag, 1)
+				deliverNmc.Stop()
 				s.Logger.Info().Msgf("通道(%s) 已关闭 deliverNmc.Consumer", s.RunId)
 			}
 			if atomic.LoadInt32(&moNmc.StopFlag) == 0 {
-				moNmc.Consumer.Stop()
-				atomic.StoreInt32(&moNmc.StopFlag, 1)
+				moNmc.Stop()
 				s.Logger.Info().Msgf("通道(%s) 已关闭 moNmc.Consumer", s.RunId)
 			}
 		}
