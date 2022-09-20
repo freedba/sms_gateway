@@ -208,12 +208,13 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		if err != nil {
 			s.Logger.Error().Msgf("dmi.MsgId(%s) parseUint error:%v", dmi.MsgId, err)
 		}
-
+		t, _ := time.Parse("2006-01-02 03:04:05", dmi.SendTime)
+		sendTime := t.Format("0601020304")
 		dm.MsgId = msgId
 		dm.Stat = &common.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
 		dm.DestTerminalId = &common.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
-		dm.SubmitTime = &common.OctetString{Data: []byte(dmi.SendTime), FixedLen: 10}
-		dm.DoneTime = &common.OctetString{Data: []byte(dmi.SendTime), FixedLen: 10}
+		dm.SubmitTime = &common.OctetString{Data: []byte(sendTime), FixedLen: 10}
+		dm.DoneTime = &common.OctetString{Data: []byte(sendTime), FixedLen: 10}
 		dm.SmscSequence = 0
 
 		destId = &common.OctetString{Data: []byte(s.Account.CmppJoinDestId), FixedLen: 21}
