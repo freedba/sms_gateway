@@ -210,7 +210,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		}
 		t, _ := time.Parse("2006-01-02 03:04:05", dmi.SendTime)
 		sendTime := t.Format("0601020304")
-		s.Logger.Debug().Msgf("t: %s, sendTime: %s", t, sendTime)
+		s.Logger.Debug().Msgf("dmi.SendTime:%s, t: %s, sendTime: %s", dmi.SendTime, t, sendTime)
 		dm.MsgId = msgId
 		dm.Stat = &common.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
 		dm.DestTerminalId = &common.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
