@@ -208,12 +208,13 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		if err != nil {
 			s.Logger.Error().Msgf("dmi.MsgId(%s) parseUint error:%v", dmi.MsgId, err)
 		}
-		t, err := time.Parse("2006-01-02 03:04:05", dmi.SendTime)
+
+		t, err := time.Parse("2006-01-02 15:04:05", dmi.SendTime)
 		if err != nil {
 			s.Logger.Error().Msgf("time.parse: %v", err)
 		}
-		sendTime := t.Format("0601020304")
-		s.Logger.Debug().Msgf("dmi.SendTime:%s, t: %s, sendTime: %s", dmi.SendTime, t, sendTime)
+		sendTime := t.Format("060101504")
+
 		dm.MsgId = msgId
 		dm.Stat = &common.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
 		dm.DestTerminalId = &common.OctetString{Data: []byte(dmi.Mobile), FixedLen: 21}
