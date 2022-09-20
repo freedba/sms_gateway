@@ -44,10 +44,14 @@ func ServerSupervise(sess *server.Sessions) {
 				sess.Close(user)
 			} else {
 				_ = json.Unmarshal([]byte(str), &account)
-				logger.Debug().Msgf("account.FlowVelocity:%d", account.FlowVelocity)
+				logger.Debug().Msgf("user(%s) account.FlowVelocity:%d", user, account.FlowVelocity)
 				if account.FlowVelocity == 0 {
 					logger.Debug().Msgf("账号(%s) 流控值为0，关闭账号连接", user)
 					sess.Close(user)
+				} else {
+					for _, s := range conn {
+						s.Account = account
+					}
 				}
 			}
 		}

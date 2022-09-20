@@ -26,6 +26,7 @@ type AccountsInfo struct {
 	BusinessId       int64               `json:"business_id"`
 	FlowVelocity     int                 `json:"flow_velocity"`
 	ConnFlowVelocity int                 `json:"conn_flow_velocity"`
+	FreeTrial        int64               `json:"free_trial"`
 }
 
 type CmppBusinessInfo struct {

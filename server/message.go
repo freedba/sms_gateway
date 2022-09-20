@@ -127,19 +127,19 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 			}
 			discard = false
 			hsm.Deduct = v.Deduct
+
 			if v.YidongChannelId != 0 && v.LiantongChannelId != 0 && v.DianxinChannelId != 0 {
 				hsm.YidongChannelId = v.YidongChannelId
 				hsm.LiantongChannelId = v.LiantongChannelId
 				hsm.DianxinChannelId = v.DianxinChannelId
 				hsm.SendStatus = 2
-				hsm.FreeTrial = 2
 			} else {
 				hsm.YidongChannelId = 0
 				hsm.LiantongChannelId = 0
 				hsm.DianxinChannelId = 0
-				hsm.FreeTrial = 1
 				hsm.SendStatus = 1
 			}
+
 		}
 	}
 	if discard { //短信丢弃
@@ -150,6 +150,10 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	hsm.RealNum = 1
 	if sendLen > 70 {
 		hsm.RealNum = int64(math.Ceil(float64(sendLen) / float64(67)))
+	}
+	hsm.FreeTrial = s.Account.FreeTrial
+	if hsm.FreeTrial == 2 {
+		hsm.SendStatus = 2
 	}
 	hsm.IsneedReceipt = s.Account.IsNeedReceipt
 	hsm.NeedReceiptType = s.Account.NeedReceiptType
