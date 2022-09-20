@@ -213,7 +213,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 		if err != nil {
 			s.Logger.Error().Msgf("time.parse: %v", err)
 		}
-		sendTime := t.Format("060101504")
+		sendTime := t.Format("0601021504")
 
 		dm.MsgId = msgId
 		dm.Stat = &common.OctetString{Data: []byte(dmi.StatusMessage), FixedLen: 7}
