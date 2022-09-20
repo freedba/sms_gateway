@@ -123,7 +123,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 
 	s.Logger.Debug().Msgf("s.Account.BusinessInfo len:%v", len(s.Account.BusinessInfo))
 	for _, v := range s.Account.BusinessInfo {
-		s.Logger.Debug().Msgf("v.BusinessId:%v,businessId:%v, v.Status:%v", v.Status)
+		s.Logger.Debug().Msgf("v.BusinessId:%v,businessId:%v, v.Status:%v", v.BusinessId, businessId, v.Status)
 		if v.BusinessId == businessId {
 			if v.Status != 1 {
 				break
