@@ -310,8 +310,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 	}
 
 	logger.Debug().Msgf("账号(%s) 登录成功，远程地址：%s", req.SourceAddr, s.RemoteAddr)
-	s.Logger = levellogger.NewLogger(strconv.Itoa(int(s.Account.Id)))
 	s.Account = account
+	s.Logger = levellogger.NewLogger(strconv.Itoa(int(s.Account.Id)))
 	return resp, nil
 }
 
