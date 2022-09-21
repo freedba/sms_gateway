@@ -628,6 +628,23 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoSubmitInvalidSrcId
 	}
 
+	discard := true
+	var staus int64
+	businessId := s.Account.BusinessId
+	for _, v := range s.Account.BusinessInfo {
+		if v.BusinessId == businessId {
+			staus = v.Status
+			if v.Status != 1 { // 服务不可用
+				break
+			}
+			discard = false
+		}
+	}
+	if discard {
+		logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runId, businessId, staus)
+		return common.ErrnoSubmitInvalidService
+	}
+
 	if p.TPUdhi == 0 {
 	} else if p.TPUdhi == 1 { //长短信检验
 		byte4 := p.MsgContent[0:6][3]

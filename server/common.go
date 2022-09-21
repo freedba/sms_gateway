@@ -30,11 +30,11 @@ type AccountsInfo struct {
 }
 
 type CmppBusinessInfo struct {
-	BusinessId        int64  `json:"business_id"`
+	BusinessId        int64  `json:"business_id"` // 营销/行业服务
 	YidongChannelId   int64  `json:"yidong_channel_id"`
 	LiantongChannelId int64  `json:"liantong_channel_id"`
 	DianxinChannelId  int64  `json:"dianxin_channel_id"`
-	Status            int64  `json:"status"`
+	Status            int64  `json:"status"` // 1服务可用。2服务不可用
 	Deduct            string `json:"deduct"`
 }
 
