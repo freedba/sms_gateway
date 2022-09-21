@@ -52,6 +52,7 @@ func ServerSupervise(sess *server.Sessions) {
 					for _, s := range conn {
 						logger.Debug().Msgf("account: %v,account.BusinessInfo:%v", account, account.BusinessInfo)
 						s.Account = account
+						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 					}
 				}
 			}

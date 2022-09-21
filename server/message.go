@@ -121,7 +121,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 		topicName = "nsq.httpbusiness.submit.process"
 	}
 
-	s.Logger.Debug().Msgf("s.Account.BusinessInfo :%v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
+	s.Logger.Debug().Msgf("s.Account :%v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 	for _, v := range s.Account.BusinessInfo {
 		s.Logger.Debug().Msgf("v:%v,v.BusinessId:%v,businessId:%v, v.Status:%v", v, v.BusinessId, businessId, v.Status)
 		if v.BusinessId == businessId {
