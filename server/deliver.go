@@ -193,6 +193,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 			s.Logger.Error().Msgf("账号(%s) msgId generate error:", s.RunId)
 			return errors.New("msgId generate error")
 		}
+		s.Logger.Debug().Msgf("MoMsgInfo:%v", p)
 		content = utils.Utf8ToUcs2([]byte(p.MessageInfo))
 		destId = &common.OctetString{Data: []byte(s.Account.CmppDestId + p.DevelopNo), FixedLen: 21}
 		srcTerminalId = &common.OctetString{Data: []byte(p.Mobile), FixedLen: 21}

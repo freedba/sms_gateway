@@ -51,12 +51,7 @@ func ServerSupervise(sess *server.Sessions) {
 				} else {
 					for _, s := range conn {
 						s.Account.AccountHost = account.AccountHost
-						logger.Debug().Msgf("account: %v,account.BusinessInfo:%v", account, account.BusinessInfo)
-						//for idx, v := range account.BusinessInfo {
-						//	s.Account.BusinessInfo[idx] = v
-						//}
 						s.Account.BusinessInfo = account.BusinessInfo
-						//s.Account = account
 						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 					}
 				}
