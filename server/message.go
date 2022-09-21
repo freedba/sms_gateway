@@ -142,7 +142,6 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 				hsm.DianxinChannelId = 0
 				hsm.SendStatus = 1
 			}
-
 		}
 	}
 	if discard { //短信丢弃

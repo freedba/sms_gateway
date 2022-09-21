@@ -602,7 +602,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	}
 
 	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 1 {
-		logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
 		return common.ErrnoSubmitInvalidStruct
 	}
 
@@ -612,19 +612,19 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	//}
 
 	if p.MsgSrc.String() != s.Account.NickName {
-		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.MsgSrc.String: %s", runId, p.MsgSrc.String())
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.MsgSrc.String: %s", runId, p.MsgSrc.String())
 		return common.ErrnoDeliverInvalidStruct
 	}
 
 	regexpStr := "^" + p.SrcId.String()
 	re := regexp.MustCompile(s.Account.CmppDestId)
 	if !re.MatchString(regexpStr) {
-		logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ ^p.SrcId.String()", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ ^p.SrcId.String()", runId)
 		return common.ErrnoSubmitInvalidSrcId
 	}
 
 	if len(p.SrcId.String()) < len(s.Account.CmppDestId) {
-		logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
 		return common.ErrnoSubmitInvalidSrcId
 	}
 
@@ -641,7 +641,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		}
 	}
 	if discard {
-		logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runId, businessId, staus)
+		s.Logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runId, businessId, staus)
 		return common.ErrnoSubmitInvalidService
 	}
 
