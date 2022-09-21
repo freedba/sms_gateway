@@ -13,20 +13,20 @@ var EtcdCli *EtcdClient
 const runMode = "server"
 
 type AccountsInfo struct {
-	NickName         string              `json:"nick_name"`
-	CmppJoinDestId   string              `json:"cmpp_join_dest_id"`
-	CmppDestId       string              `json:"cmpp_dest_id"`
-	AccountHost      string              `json:"account_host"`
-	CmppPassword     string              `json:"cmpp_password"`
-	Id               int64               `json:"id"`
-	BusinessInfo     []*CmppBusinessInfo `json:"business_info"`
-	IsNeedReceipt    int64               `json:"isneed_receipt"`
-	NeedReceiptType  int64               `json:"need_receipt_type"`
-	IsHaveSelected   int64               `json:"is_have_selected"`
-	BusinessId       int64               `json:"business_id"`
-	FlowVelocity     int                 `json:"flow_velocity"`
-	ConnFlowVelocity int                 `json:"conn_flow_velocity"`
-	FreeTrial        int64               `json:"free_trial"`
+	NickName         string             `json:"nick_name"`
+	CmppJoinDestId   string             `json:"cmpp_join_dest_id"`
+	CmppDestId       string             `json:"cmpp_dest_id"`
+	AccountHost      string             `json:"account_host"`
+	CmppPassword     string             `json:"cmpp_password"`
+	Id               int64              `json:"id"`
+	BusinessInfo     []CmppBusinessInfo `json:"business_info"`
+	IsNeedReceipt    int64              `json:"isneed_receipt"`
+	NeedReceiptType  int64              `json:"need_receipt_type"`
+	IsHaveSelected   int64              `json:"is_have_selected"`
+	BusinessId       int64              `json:"business_id"`
+	FlowVelocity     int                `json:"flow_velocity"`
+	ConnFlowVelocity int                `json:"conn_flow_velocity"`
+	FreeTrial        int64              `json:"free_trial"`
 }
 
 type CmppBusinessInfo struct {
