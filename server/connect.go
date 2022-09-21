@@ -27,7 +27,7 @@ import (
 
 type SrvConn struct {
 	conn          net.Conn
-	Account       AccountsInfo
+	Account       *AccountsInfo
 	Logger        *levellogger.Logger
 	rw            *socket.PacketRW
 	waitGroup     utils.WaitGroupWrapper
@@ -238,8 +238,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 		return resp, err
 	}
 
-	var account AccountsInfo
-	account = AccountsInfo{}
+	var account *AccountsInfo
+	account = &AccountsInfo{}
 	err = json.Unmarshal([]byte(str), &account)
 	if err != nil {
 		logger.Error().Msgf("accounts json.unmarshal error:%v, exit...", err)

@@ -21,7 +21,7 @@ func ServerSupervise(sess *server.Sessions) {
 	defer timer.Stop()
 	threshold := config.GetThreshold()
 	rKey := "index:user:userinfo:"
-	account := server.AccountsInfo{}
+	account := &server.AccountsInfo{}
 
 	for {
 		utils.ResetTimer(timer, timeout)
@@ -43,7 +43,7 @@ func ServerSupervise(sess *server.Sessions) {
 				logger.Debug().Msgf("账号(%s) 不存在，关闭账号连接", user)
 				sess.Close(user)
 			} else {
-				_ = json.Unmarshal([]byte(str), &account)
+				_ = json.Unmarshal([]byte(str), account)
 				logger.Debug().Msgf("user(%s) account.FlowVelocity:%d", user, account.FlowVelocity)
 				if account.FlowVelocity == 0 {
 					logger.Debug().Msgf("账号(%s) 流控值为0，关闭账号连接", user)
