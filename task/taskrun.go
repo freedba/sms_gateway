@@ -50,6 +50,7 @@ func ServerSupervise(sess *server.Sessions) {
 					sess.Close(user)
 				} else {
 					for _, s := range conn {
+						logger.Debug().Msgf("account: %v", account)
 						s.Account = account
 					}
 				}
