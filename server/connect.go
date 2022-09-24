@@ -629,11 +629,11 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	}
 
 	discard := true
-	var staus int64
+	var status int64
 	businessId := s.Account.BusinessId
 	for _, v := range s.Account.BusinessInfo {
 		if v.BusinessId == businessId {
-			staus = v.Status
+			status = v.Status
 			if v.Status != 1 { // 服务不可用
 				break
 			}
@@ -641,7 +641,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		}
 	}
 	if discard {
-		s.Logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runId, businessId, staus)
+		s.Logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runId, businessId, status)
 		return common.ErrnoSubmitInvalidService
 	}
 
