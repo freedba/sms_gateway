@@ -608,11 +608,6 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoSubmitInvalidStruct
 	}
 
-	//if p.ServiceId.String() != s.Account.NickName {
-	//	logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.ServiceId.String: %s", runId, p.ServiceId.String())
-	//	return common.ErrnoDeliverInvalidServiceId
-	//}
-
 	if p.MsgSrc.String() != s.Account.NickName {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.MsgSrc.String: %s", runId, p.MsgSrc.String())
 		return common.ErrnoDeliverInvalidStruct
