@@ -632,6 +632,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	var status int64
 	businessId := s.Account.BusinessId
 	for _, v := range s.Account.BusinessInfo {
+		s.Logger.Debug().Msgf("businessinfo: %v", v)
 		if v.BusinessId == businessId {
 			status = v.Status
 			if v.Status != 1 { // 服务不可用
