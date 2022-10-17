@@ -33,7 +33,7 @@ type SrvConn struct {
 	waitGroup     utils.WaitGroupWrapper
 	terminateSent int32
 	mutex         *sync.Mutex
-	BsiLock       *sync.Mutex
+	BsiLock       *sync.RWMutex
 
 	addr       string
 	RemoteAddr string
@@ -153,7 +153,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		lsLock:  new(sync.Mutex),
 		lsmLock: new(sync.Mutex),
 		mutex:   new(sync.Mutex),
-		BsiLock: new(sync.Mutex),
+		BsiLock: new(sync.RWMutex),
 	}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)
@@ -712,8 +712,8 @@ func (s *SrvConn) UpdateBusinessInfo(newBsis []CmppBusinessInfo) {
 }
 
 func (s *SrvConn) GetBusinessInfo() []CmppBusinessInfo {
-	s.BsiLock.Lock()
-	defer s.BsiLock.Unlock()
+	s.BsiLock.RLock()
+	defer s.BsiLock.RUnlock()
 	return s.Account.BusinessInfo
 }
 
