@@ -33,6 +33,7 @@ type SrvConn struct {
 	waitGroup     utils.WaitGroupWrapper
 	terminateSent int32
 	mutex         *sync.Mutex
+	BsiLock       *sync.Mutex
 
 	addr       string
 	RemoteAddr string
@@ -152,6 +153,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		lsLock:  new(sync.Mutex),
 		lsmLock: new(sync.Mutex),
 		mutex:   new(sync.Mutex),
+		BsiLock: new(sync.Mutex),
 	}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)
@@ -632,7 +634,8 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	var status int64
 	businessId := s.Account.BusinessId
 	s.Logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
-	for _, v := range s.Account.BusinessInfo {
+	bsInfos := s.GetBusinessInfo()
+	for _, v := range bsInfos {
 		s.Logger.Debug().Msgf("businessinfo: %v", v)
 		if v.BusinessId == businessId {
 			status = v.Status
@@ -703,6 +706,20 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
 	}
 	atomic.AddInt64(&s.deliverTaskCount, -1)
+}
+
+func (s *SrvConn) UpdateBusinessInfo(newBsis []CmppBusinessInfo) {
+	s.BsiLock.Lock()
+	defer s.BsiLock.Unlock()
+	s.Account.BusinessInfo = make([]CmppBusinessInfo, len(newBsis))
+	copy(s.Account.BusinessInfo[:], newBsis)
+
+}
+
+func (s *SrvConn) GetBusinessInfo() []CmppBusinessInfo {
+	s.BsiLock.Lock()
+	defer s.BsiLock.Unlock()
+	return s.Account.BusinessInfo
 }
 
 func (s *SrvConn) LoopActiveTest(ctx context.Context) {
