@@ -56,7 +56,7 @@ func ServerSupervise(sess *server.Sessions) {
 				} else {
 					for _, s := range conn {
 						s.Account.AccountHost = account.AccountHost
-						if !slices.Equal(s.Account.BusinessInfo, account.BusinessInfo) {
+						if !slices.Equal(s.GetBusinessInfo(), account.BusinessInfo) {
 							logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
 							s.UpdateBusinessInfo(account.BusinessInfo)
 						}
