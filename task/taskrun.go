@@ -10,6 +10,8 @@ import (
 	"sms_lib/models"
 	"sms_lib/utils"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 //var signalExit chan struct{}
@@ -54,7 +56,9 @@ func ServerSupervise(sess *server.Sessions) {
 				} else {
 					for _, s := range conn {
 						s.Account.AccountHost = account.AccountHost
-						s.UpdateBusinessInfo(account.BusinessInfo)
+						if !slices.Equal(s.Account.BusinessInfo, account.BusinessInfo) {
+							s.UpdateBusinessInfo(account.BusinessInfo)
+						}
 						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 					}
 				}
