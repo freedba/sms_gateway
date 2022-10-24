@@ -27,6 +27,7 @@ type AccountsInfo struct {
 	FlowVelocity     int                `json:"flow_velocity"`
 	ConnFlowVelocity int                `json:"conn_flow_velocity"`
 	FreeTrial        int64              `json:"free_trial"`
+	MarketFreeTrial  int64              `json:"marketing_free_trial"`
 }
 
 type CmppBusinessInfo struct {
@@ -38,7 +39,7 @@ type CmppBusinessInfo struct {
 	Deduct            string `json:"deduct"`
 }
 
-//提交的结构体最终入缓存队列的结构体
+// 提交的结构体最终入缓存队列的结构体
 type ClientSubmitMessageToBase struct {
 	Mobile       string   `json:"mobile"`
 	Messagetotal string   `json:"messagetotal"`
@@ -53,7 +54,7 @@ type ClientSubmitMessageToBase struct {
 	TaskNo       string   `json:"task_no"`
 }
 
-//cmpp入队列格式修正为和http格式一致
+// cmpp入队列格式修正为和http格式一致
 type HttpSubmitMessageInfo struct {
 	Uid               int64  `json:"uid"`
 	Source            string `json:"source"`

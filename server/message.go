@@ -109,6 +109,7 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 
 func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	var topicName string
+	var freeTrial int64
 	discard := true
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
@@ -117,8 +118,11 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	businessId := s.Account.BusinessId
 	if businessId == 5 {
 		topicName = "nsq.httpmarketing.submit.process"
+		freeTrial = s.Account.MarketFreeTrial
+
 	} else {
 		topicName = "nsq.httpbusiness.submit.process"
+		freeTrial = s.Account.FreeTrial
 	}
 
 	//s.Logger.Debug().Msgf("s.Account :%v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
@@ -153,7 +157,7 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	if sendLen > 70 {
 		hsm.RealNum = int64(math.Ceil(float64(sendLen) / float64(67)))
 	}
-	hsm.FreeTrial = s.Account.FreeTrial
+	hsm.FreeTrial = freeTrial
 	if hsm.FreeTrial == 2 {
 		hsm.SendStatus = 2
 	}
