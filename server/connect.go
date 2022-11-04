@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/chenhg5/collection"
-	cmap "github.com/orcaman/concurrent-map"
 	"io"
 	"net"
 	"regexp"
@@ -23,6 +21,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/chenhg5/collection"
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 type SrvConn struct {
@@ -573,14 +574,14 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			}
 		}
 	} else {
-		if resp.Result != common.ErrnoSubmitNotPassFlowControl {
-			s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
-			if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
-				s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
-			}
-			time.Sleep(time.Duration(1) * time.Second)
-			goto EXIT
+		// if resp.Result != common.ErrnoSubmitNotPassFlowControl {
+		s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
+		if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
+			s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
 		}
+		time.Sleep(time.Duration(1) * time.Second)
+		goto EXIT
+		// }
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
 	return
@@ -603,7 +604,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		return common.ErrnoSubmitInvalidSequence
 	}
 
-	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 1 {
+	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 2 {
 		s.Logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
 		return common.ErrnoSubmitInvalidStruct
 	}
@@ -676,7 +677,6 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		s.Logger.Error().Msgf("账号(%s) 提交的TPPid值不合法:%d", runId, p.TPPid)
 		return common.ErrnoSubmitInvalidStruct
 	}
-
 	return 0
 }
 
