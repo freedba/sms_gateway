@@ -648,6 +648,11 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 
 	if p.TPUdhi == 0 {
 	} else if p.TPUdhi == 1 { //长短信检验
+		cLen := len(p.MsgContent)
+		if cLen < 6 {
+			s.Logger.Error().Msgf("账号(%s) 提交的长短信缺少头信息, cLen:%d", runId, cLen)
+			return common.ErrnoSubmitInvalidStruct
+		}
 		byte4 := p.MsgContent[0:6][3]
 		msgId := strconv.FormatUint(p.MsgId, 10)
 		s.lsLock.Lock()
