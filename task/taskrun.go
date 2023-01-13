@@ -115,6 +115,7 @@ func LoopSrvMain() {
 	}
 
 	go ServerSupervise(sess)
+	go loopMakeMsgId()
 
 	server.Listen(sess)
 
@@ -122,7 +123,7 @@ func LoopSrvMain() {
 	os.Exit(0)
 }
 
-func loopMakeMsgId(ctx context.Context) {
+func loopMakeMsgId() {
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	timeout := time.Duration(2) * time.Second
