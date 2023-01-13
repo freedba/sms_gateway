@@ -362,22 +362,22 @@ func (s *SrvConn) Cleanup() {
 	s.Logger.Debug().Msgf("帐号(%s) 缓存数据已清理，Exiting Cleanup...", runId)
 }
 
-func (s *SrvConn) loopMakeMsgId(ctx context.Context) {
-	timer := time.NewTimer(utils.Timeout)
-	defer timer.Stop()
-	timeout := time.Duration(2) * time.Second
-	msgIdChan = make(chan uint64, 10000)
-	for {
-		utils.ResetTimer(timer, timeout)
-		select {
-		case <-ctx.Done():
-			s.Logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...", s.RunId)
-			return
-		case msgIdChan <- GenerateMsgID():
-		case <-timer.C:
-		}
-	}
-}
+// func (s *SrvConn) loopMakeMsgId(ctx context.Context) {
+// 	timer := time.NewTimer(utils.Timeout)
+// 	defer timer.Stop()
+// 	timeout := time.Duration(2) * time.Second
+// 	MsgIdChan = make(chan uint64, 10000)
+// 	for {
+// 		utils.ResetTimer(timer, timeout)
+// 		select {
+// 		case <-ctx.Done():
+// 			s.Logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...", s.RunId)
+// 			return
+// 		case MsgIdChan <- GenerateMsgID():
+// 		case <-timer.C:
+// 		}
+// 	}
+// }
 
 func (s *SrvConn) ReadLoop() {
 	atomic.StoreInt32(&s.ReadLoopRunning, 1)
@@ -386,7 +386,7 @@ func (s *SrvConn) ReadLoop() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.waitGroup.Wrap(func() { s.HandleCommand(ctx) })
-	s.waitGroup.Wrap(func() { s.loopMakeMsgId(ctx) })
+	// s.waitGroup.Wrap(func() { s.loopMakeMsgId(ctx) })
 	s.waitGroup.Wrap(func() { s.LoopActiveTest(ctx) })
 
 	for {
@@ -532,7 +532,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	runId := s.RunId
 	resp := cmpp.NewSubmitResp()
 	p := &cmpp.Submit{}
-	resp.MsgId = <-msgIdChan
+	resp.MsgId = <-MsgIdChan
 	if resp.MsgId == 0 {
 		s.Logger.Error().Msgf("msgId generate error:")
 		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)

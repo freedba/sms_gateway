@@ -6,7 +6,7 @@ var SeqMsgId uint32
 var snowNode *snowflake.Node
 var SignalExit = make(chan struct{})
 var SeqId uint32
-var msgIdChan chan uint64
+var MsgIdChan chan uint64
 var FakeGateway int
 var EtcdCli *EtcdClient
 

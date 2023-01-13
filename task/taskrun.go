@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"runtime"
@@ -119,4 +120,21 @@ func LoopSrvMain() {
 
 	logger.Debug().Msgf("退出网关主程序")
 	os.Exit(0)
+}
+
+func loopMakeMsgId(ctx context.Context) {
+	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
+	timeout := time.Duration(2) * time.Second
+	server.MsgIdChan = make(chan uint64, 10000)
+	for {
+		utils.ResetTimer(timer, timeout)
+		select {
+		case <-server.SignalExit:
+			logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...")
+			return
+		case server.MsgIdChan <- server.GenerateMsgID():
+		case <-timer.C:
+		}
+	}
 }
