@@ -617,7 +617,7 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	regexpStr := "^" + p.SrcId.String()
 	re := regexp.MustCompile(s.Account.CmppDestId)
 	if !re.MatchString(regexpStr) {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ ^p.SrcId.String()", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ p.SrcId.String()", runId)
 		return common.ErrnoSubmitInvalidSrcId
 	}
 
