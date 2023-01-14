@@ -84,7 +84,7 @@ func LoopSrvMain() {
 		logger.Info().Msgf("当前运行模拟网关模式")
 	}
 	levellogger.LLogger = levellogger.NewLogger("")
-	server.NewSnowflakeNode()
+	utils.NewSnowflakeNode()
 	server.SeqId = server.InitSeqId()
 	// init etcd
 	server.NewEtcd()
@@ -114,7 +114,7 @@ func LoopSrvMain() {
 	}
 
 	go ServerSupervise(sess)
-	go loopMakeMsgId()
+	go utils.MakeMsgID(server.SignalExit)
 
 	server.Listen(sess)
 
@@ -122,19 +122,19 @@ func LoopSrvMain() {
 	os.Exit(0)
 }
 
-func loopMakeMsgId() {
-	timer := time.NewTimer(utils.Timeout)
-	defer timer.Stop()
-	timeout := time.Duration(2) * time.Second
-	server.MsgIdChan = make(chan uint64, 10000)
-	for {
-		utils.ResetTimer(timer, timeout)
-		select {
-		case <-server.SignalExit:
-			logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...")
-			return
-		case server.MsgIdChan <- server.GenerateMsgID():
-		case <-timer.C:
-		}
-	}
-}
+// func loopMakeMsgId() {
+// 	timer := time.NewTimer(utils.Timeout)
+// 	defer timer.Stop()
+// 	timeout := time.Duration(2) * time.Second
+// 	server.MsgIdChan = make(chan uint64, 10000)
+// 	for {
+// 		utils.ResetTimer(timer, timeout)
+// 		select {
+// 		case <-server.SignalExit:
+// 			logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...")
+// 			return
+// 		case utils.MsgIdChan <- utils.GenerateMsgID():
+// 		case <-timer.C:
+// 		}
+// 	}
+// }

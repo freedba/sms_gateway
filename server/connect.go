@@ -532,7 +532,7 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	runId := s.RunId
 	resp := cmpp.NewSubmitResp()
 	p := &cmpp.Submit{}
-	resp.MsgId = <-MsgIdChan
+	resp.MsgId = <-utils.MsgIdChan
 	if resp.MsgId == 0 {
 		s.Logger.Error().Msgf("msgId generate error:")
 		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/youzan/go-nsq"
 	"sms_lib/config"
 	"sms_lib/models"
 	"sms_lib/protocol/cmpp"
@@ -14,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/youzan/go-nsq"
 )
 
 type deliverSender struct {
@@ -188,7 +189,7 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 			s.Logger.Error().Msgf("账号(%s) json.unmarshal error:%v", s.RunId, err)
 			return err
 		}
-		msgId = GenerateMsgID()
+		msgId = <-utils.MsgIdChan
 		if msgId == 0 {
 			s.Logger.Error().Msgf("账号(%s) msgId generate error:", s.RunId)
 			return errors.New("msgId generate error")
