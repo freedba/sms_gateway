@@ -10,8 +10,6 @@ import (
 	"sms_lib/models"
 	"sms_lib/utils"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 //var signalExit chan struct{}
@@ -55,11 +53,12 @@ func ServerSupervise(sess *server.Sessions) {
 					sess.Close(user)
 				} else {
 					for _, s := range conn {
-						s.Account.AccountHost = account.AccountHost
-						if !slices.Equal(s.GetBusinessInfo(), account.BusinessInfo) {
-							logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
-							s.UpdateBusinessInfo(account.BusinessInfo)
-						}
+						s.Account = *account
+						// s.Account.AccountHost = account.AccountHost
+						// if !slices.Equal(s.GetBusinessInfo(), account.BusinessInfo) {
+						// 	logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
+						// 	s.UpdateBusinessInfo(account.BusinessInfo)
+						// }
 						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 					}
 				}
@@ -121,20 +120,3 @@ func LoopSrvMain() {
 	logger.Debug().Msgf("退出网关主程序")
 	os.Exit(0)
 }
-
-// func loopMakeMsgId() {
-// 	timer := time.NewTimer(utils.Timeout)
-// 	defer timer.Stop()
-// 	timeout := time.Duration(2) * time.Second
-// 	server.MsgIdChan = make(chan uint64, 10000)
-// 	for {
-// 		utils.ResetTimer(timer, timeout)
-// 		select {
-// 		case <-server.SignalExit:
-// 			logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...")
-// 			return
-// 		case utils.MsgIdChan <- utils.GenerateMsgID():
-// 		case <-timer.C:
-// 		}
-// 	}
-// }
