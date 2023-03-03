@@ -43,7 +43,7 @@ func ServerSupervise(sess *server.Sessions) {
 				sess.Close(user)
 			} else {
 				account := server.AccountsInfo{}
-				err := json.Unmarshal([]byte(str), account)
+				err := json.Unmarshal([]byte(str), &account)
 				if err != nil {
 					logger.Error().Msgf("accout refresh error:%v", err)
 				}
