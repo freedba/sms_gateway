@@ -53,11 +53,8 @@ func ServerSupervise(sess *server.Sessions) {
 					sess.Close(user)
 				} else {
 					for _, s := range conn {
+						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v----", s.Account, s.Account.BusinessInfo)
 						s.UpdateAccout(account)
-						// if !slices.Equal(s.GetBusinessInfo(), account.BusinessInfo) {
-						// 	logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
-						// 	s.UpdateBusinessInfo(account.BusinessInfo)
-						// }
 						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 					}
 				}

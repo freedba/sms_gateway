@@ -725,10 +725,8 @@ func (s *SrvConn) UpdateAccout(account AccountsInfo) {
 		logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
 		s.UpdateBusinessInfo(newBsis)
 	}
-
-	// s.Account.BusinessInfo = make([]CmppBusinessInfo, len(newBsis))
-	// copy(s.Account.BusinessInfo[:], newBsis)
 }
+
 func (s *SrvConn) GetBusinessInfo() []CmppBusinessInfo {
 	s.BsiLock.RLock()
 	defer s.BsiLock.RUnlock()
