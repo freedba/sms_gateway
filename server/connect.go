@@ -709,13 +709,13 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 }
 
 func (s *SrvConn) UpdateBusinessInfo(newBsis []CmppBusinessInfo) {
+	s.BsiLock.Lock()
+	defer s.BsiLock.Unlock()
 	s.Account.BusinessInfo = make([]CmppBusinessInfo, len(newBsis))
 	copy(s.Account.BusinessInfo[:], newBsis)
 }
 
 func (s *SrvConn) UpdateAccout(account AccountsInfo) {
-	s.BsiLock.Lock()
-	defer s.BsiLock.Unlock()
 	s.Account.AccountHost = account.AccountHost
 	s.Account.FreeTrial = account.FreeTrial
 	s.Account.MarketFreeTrial = account.MarketFreeTrial
