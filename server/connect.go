@@ -24,11 +24,12 @@ import (
 
 	"github.com/chenhg5/collection"
 	cmap "github.com/orcaman/concurrent-map"
+	"golang.org/x/exp/slices"
 )
 
 type SrvConn struct {
 	conn          net.Conn
-	Account       AccountsInfo
+	Account       *AccountsInfo
 	Logger        *levellogger.Logger
 	rw            *socket.PacketRW
 	waitGroup     utils.WaitGroupWrapper
@@ -241,9 +242,8 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 		return resp, err
 	}
 
-	var account AccountsInfo
-	account = AccountsInfo{}
-	err = json.Unmarshal([]byte(str), &account)
+	account := &AccountsInfo{}
+	err = json.Unmarshal([]byte(str), account)
 	if err != nil {
 		logger.Error().Msgf("accounts json.unmarshal error:%v, exit...", err)
 		err = common.ConnectRspResultErrMap[common.ErrnoConnectInvalidStruct]
@@ -709,12 +709,26 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 }
 
 func (s *SrvConn) UpdateBusinessInfo(newBsis []CmppBusinessInfo) {
-	s.BsiLock.Lock()
-	defer s.BsiLock.Unlock()
 	s.Account.BusinessInfo = make([]CmppBusinessInfo, len(newBsis))
 	copy(s.Account.BusinessInfo[:], newBsis)
 }
 
+func (s *SrvConn) UpdateAccout(account AccountsInfo) {
+	s.BsiLock.Lock()
+	defer s.BsiLock.Unlock()
+	s.Account.AccountHost = account.AccountHost
+	s.Account.FreeTrial = account.FreeTrial
+	s.Account.MarketFreeTrial = account.MarketFreeTrial
+
+	newBsis := account.BusinessInfo
+	if !slices.Equal(s.GetBusinessInfo(), newBsis) {
+		logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
+		s.UpdateBusinessInfo(newBsis)
+	}
+
+	// s.Account.BusinessInfo = make([]CmppBusinessInfo, len(newBsis))
+	// copy(s.Account.BusinessInfo[:], newBsis)
+}
 func (s *SrvConn) GetBusinessInfo() []CmppBusinessInfo {
 	s.BsiLock.RLock()
 	defer s.BsiLock.RUnlock()

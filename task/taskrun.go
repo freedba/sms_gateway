@@ -10,8 +10,6 @@ import (
 	"sms_lib/models"
 	"sms_lib/utils"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 //var signalExit chan struct{}
@@ -23,7 +21,6 @@ func ServerSupervise(sess *server.Sessions) {
 	defer timer.Stop()
 	threshold := config.GetThreshold()
 	rKey := "index:user:userinfo:"
-	account := &server.AccountsInfo{}
 
 	for {
 		utils.ResetTimer(timer, timeout)
@@ -45,6 +42,7 @@ func ServerSupervise(sess *server.Sessions) {
 				logger.Debug().Msgf("账号(%s) 不存在，关闭账号连接", user)
 				sess.Close(user)
 			} else {
+				account := server.AccountsInfo{}
 				err := json.Unmarshal([]byte(str), account)
 				if err != nil {
 					logger.Error().Msgf("accout refresh error:%v", err)
@@ -55,12 +53,11 @@ func ServerSupervise(sess *server.Sessions) {
 					sess.Close(user)
 				} else {
 					for _, s := range conn {
-						s.Account = *account
-						// s.Account.AccountHost = account.AccountHost
-						if !slices.Equal(s.GetBusinessInfo(), account.BusinessInfo) {
-							logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
-							s.UpdateBusinessInfo(account.BusinessInfo)
-						}
+						s.UpdateAccout(account)
+						// if !slices.Equal(s.GetBusinessInfo(), account.BusinessInfo) {
+						// 	logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
+						// 	s.UpdateBusinessInfo(account.BusinessInfo)
+						// }
 						logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 					}
 				}
