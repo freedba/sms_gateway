@@ -574,14 +574,13 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			}
 		}
 	} else {
-		// if resp.Result != common.ErrnoSubmitNotPassFlowControl {
+		// 注意：需要断开处理
 		s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
 		if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
 			s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
 		}
 		time.Sleep(time.Duration(1) * time.Second)
 		goto EXIT
-		// }
 	}
 	atomic.AddInt64(&s.submitTaskCount, -1)
 	return
@@ -594,7 +593,7 @@ EXIT:
 func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	runId := s.RunId
 	if !s.RateLimit.Available() {
-		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.FlowVelocity.Rate)
+		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.RateLimit.Lim.Burst())
 		return common.ErrnoSubmitNotPassFlowControl
 	}
 
@@ -629,10 +628,10 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	discard := true
 	var status int64
 	businessId := s.Account.BusinessId
-	s.Logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
+	// s.Logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 	bsInfos := s.GetBusinessInfo()
 	for _, v := range bsInfos {
-		s.Logger.Debug().Msgf("businessinfo: %v", v)
+		// s.Logger.Debug().Msgf("businessinfo: %v", v)
 		if v.BusinessId == businessId {
 			status = v.Status
 			if status != 1 { // 服务不可用

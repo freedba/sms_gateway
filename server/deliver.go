@@ -117,7 +117,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 		select {
 		case deliverMsg := <-deliverNmc.MsgChan:
 			//fix me
-			if err = snd.msgWrite(1, deliverMsg.Body); err != nil {
+			if err = snd.msgWrite(1, deliverMsg.Body, ctx); err != nil {
 				s.Logger.Error().Msgf("账号(%s) deliverMsg return error: %v", s.RunId, err)
 				s.Logger.Debug().Msgf("通道(%s) deliverMsg.Body: %v", s.RunId, deliverMsg.Body)
 				exitFlag = true
@@ -130,7 +130,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 			}
 		case moMsg := <-moNmc.MsgChan:
 			//fix me
-			if err = snd.msgWrite(0, moMsg.Body); err != nil {
+			if err = snd.msgWrite(0, moMsg.Body, ctx); err != nil {
 				s.Logger.Error().Msgf("账号(%s) moMsg return error: %v", s.RunId, err)
 				s.Logger.Debug().Msgf("通道(%s) moMsg.Body: %v", s.RunId, moMsg.Body)
 				exitFlag = true
@@ -142,7 +142,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 				utils.CloseChan(&s.ExitSrv, s.mutex)
 			}
 		case msg := <-s.deliverFakeChan:
-			if err = snd.msgWrite(1, msg); err != nil {
+			if err = snd.msgWrite(1, msg, ctx); err != nil {
 				s.Logger.Error().Msgf("账号(%s) msg return error: %v", s.RunId, err)
 				exitFlag = true
 				utils.CloseChan(&s.ExitSrv, s.mutex)
@@ -176,7 +176,7 @@ func (snd *deliverSender) cleanChan(msg chan nsq.Message) {
 	s.Logger.Info().Msgf("账号(%s) chan缓存已完成清理", s.RunId)
 }
 
-func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
+func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte, ctx context.Context) error {
 	s := snd.s
 	dm := &cmpp.DeliverMsg{}
 	var msgId uint64
@@ -256,7 +256,12 @@ func (snd *deliverSender) msgWrite(registerDelivery uint8, msg []byte) error {
 	}
 	mapKey := strconv.Itoa(int(s.Account.Id)) + ":" + strconv.Itoa(int(newSeqId))
 	s.deliverMsgMap.Set(mapKey, *d)
-	s.mapKeyInChan <- mapKey // 仅用作回执发送缓冲控制
+	select {
+	case s.mapKeyInChan <- mapKey: // 仅用作回执发送缓冲控制
+	case <-ctx.Done():
+		s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 deliverRespMsg 协程....", s.RunId)
+		return nil
+	}
 
 	s.DeliverSendCount++
 	if s.DeliverSendCount%utils.PeekInterval == 0 {
