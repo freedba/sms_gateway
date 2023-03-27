@@ -718,6 +718,8 @@ func (s *SrvConn) UpdateAccout(account AccountsInfo) {
 	s.Account.AccountHost = account.AccountHost
 	s.Account.FreeTrial = account.FreeTrial
 	s.Account.MarketFreeTrial = account.MarketFreeTrial
+	s.Account.FlowVelocity = account.FlowVelocity
+	s.Account.ConnFlowVelocity = account.ConnFlowVelocity
 
 	newBsis := account.BusinessInfo
 	if !slices.Equal(s.GetBusinessInfo(), newBsis) {
