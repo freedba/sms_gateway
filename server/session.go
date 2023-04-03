@@ -26,7 +26,6 @@ func (sess *Sessions) GetUserConn(name string) int {
 	for k, v := range keyMaps {
 		logger.Debug().Msgf("key: %s, val: %s, name: %s", k, v, name)
 		if bytes.Contains([]byte(k), []byte(name)) {
-			logger.Debug().Msgf("name: %s", name)
 			if count, err := strconv.ParseInt(v, 10, 32); err == nil {
 				conn += count
 			}

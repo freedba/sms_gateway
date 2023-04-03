@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
-	"go.etcd.io/etcd/client/v3"
 	"sms_lib/config"
 	"sms_lib/utils"
 	"strings"
 	"time"
+
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type EtcdClient struct {
