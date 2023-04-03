@@ -24,8 +24,8 @@ before_script:
   - mkdir $GOPATH/src/$REPO_NAME/etc
   - mkdir /tmp/$DEP_PROJ_NAME
   - git clone http://gitlab-ci-token:${CI_JOB_TOKEN}@$CI_SERVER_HOST:$CI_SERVER_PORT/backend/$DEP_PROJ_NAME.git /tmp/$DEP_PROJ_NAME;
-  - ln -svf /tmp/$DEP_PROJ_NAME $CI_PROJECT_DIR/../$DEP_PROJ_NAME
   - ln -svf /tmp/$DEP_PROJ_NAME $GOPATH/src/$(dirname $REPO_NAME)/$DEP_PROJ_NAME
+  - cd $GOPATH/src/$(dirname $REPO_NAME)/;go work init $PROJ_NAME $DEP_PROJ_NAME
 
 stages:
   - make
@@ -34,7 +34,7 @@ stages:
   - deploy
 
 Make go binary:
-  image: golang:1.18
+  image: golang:1.20
   tags:
     - sms
   stage: make
