@@ -8,7 +8,7 @@ variables:
   # Please edit to your GitLab project
   PROJ_NAME: sms_gateway
   K8S_APP: sms-gateway
-  REPO_NAME: git@$CI_SERVER_HOST:$CI_SERVER_PORT/backend/${PROJ_NAME}.git
+  REPO_NAME: git@$CI_SERVER_HOST:$CI_SERVER_PORT/backend/${PROJ_NAME}
   DEP_PROJ_NAME: sms_lib
 
 # The problem is that to be able to use go get, one needs to put
