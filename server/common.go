@@ -1,5 +1,7 @@
 package server
 
+import "sms_lib/utils"
+
 // import "github.com/bwmarrin/snowflake"
 
 var SeqMsgId uint32
@@ -10,7 +12,7 @@ var SeqId uint32
 
 // var MsgIdChan chan uint64
 var FakeGateway int
-var EtcdCli *EtcdClient
+var EtcdCli *utils.EtcdClient
 
 const runMode = "server"
 

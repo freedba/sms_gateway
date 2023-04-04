@@ -80,8 +80,14 @@ func LoopSrvMain() {
 	levellogger.LLogger = levellogger.NewLogger("")
 	utils.NewSnowflakeNode()
 	server.SeqId = server.InitSeqId()
+
 	// init etcd
-	server.NewEtcd()
+	etcdCli, err := utils.NewEtcd()
+	if err != nil {
+		logger.Error().Msgf("etcd init error: %v", err)
+		return
+	}
+	server.EtcdCli = etcdCli
 	server.EtcdCli.LeaseGrant(30)
 	go server.EtcdCli.LeaseRenew()
 

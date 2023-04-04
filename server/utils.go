@@ -4,18 +4,6 @@ import (
 	"sync"
 )
 
-type WaitGroupWrapper struct {
-	sync.WaitGroup
-}
-
-func (w *WaitGroupWrapper) Wrap(f func()) {
-	w.Add(1)
-	go func() {
-		f()
-		w.Done()
-	}()
-}
-
 type LongSms struct {
 	Content map[uint8][]byte
 	MsgID   map[uint8]string
