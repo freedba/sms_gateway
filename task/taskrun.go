@@ -72,14 +72,14 @@ func LoopSrvMain() {
 	var err error
 	models.InitDB()
 	models.InitRedis()
-	server.InitNodeId()
+	server.InitNodeID()
 	server.FakeGateway = config.GetFakeGateway()
 	if server.FakeGateway == 1 {
 		logger.Info().Msgf("当前运行模拟网关模式")
 	}
 	levellogger.LLogger = levellogger.NewLogger("")
 	utils.NewSnowflakeNode()
-	server.SeqId = server.InitSeqId()
+	server.SeqID = server.InitSeqID()
 
 	// init etcd
 	etcdCli, err := utils.NewEtcd()

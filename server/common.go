@@ -4,11 +4,11 @@ import "sms_lib/utils"
 
 // import "github.com/bwmarrin/snowflake"
 
-var SeqMsgId uint32
+var SeqMsgID uint32
 
 // var snowNode *snowflake.Node
 var SignalExit = make(chan struct{})
-var SeqId uint32
+var SeqID uint32
 
 // var MsgIdChan chan uint64
 var FakeGateway int
@@ -18,16 +18,16 @@ const runMode = "server"
 
 type AccountsInfo struct {
 	NickName         string             `json:"nick_name"`
-	CmppJoinDestId   string             `json:"cmpp_join_dest_id"`
-	CmppDestId       string             `json:"cmpp_dest_id"`
+	CmppJoinDestID   string             `json:"cmpp_join_dest_id"`
+	CmppDestID       string             `json:"cmpp_dest_id"`
 	AccountHost      string             `json:"account_host"`
 	CmppPassword     string             `json:"cmpp_password"`
-	Id               int64              `json:"id"`
+	ID               int64              `json:"id"`
 	BusinessInfo     []CmppBusinessInfo `json:"business_info"`
 	IsNeedReceipt    int64              `json:"isneed_receipt"`
 	NeedReceiptType  int64              `json:"need_receipt_type"`
 	IsHaveSelected   int64              `json:"is_have_selected"`
-	BusinessId       int64              `json:"business_id"`
+	BusinessID       int64              `json:"business_id"`
 	FlowVelocity     int                `json:"flow_velocity"`
 	ConnFlowVelocity int                `json:"conn_flow_velocity"`
 	FreeTrial        int64              `json:"free_trial"`
@@ -35,10 +35,10 @@ type AccountsInfo struct {
 }
 
 type CmppBusinessInfo struct {
-	BusinessId        int64  `json:"business_id"` // 营销/行业服务
-	YidongChannelId   int64  `json:"yidong_channel_id"`
-	LiantongChannelId int64  `json:"liantong_channel_id"`
-	DianxinChannelId  int64  `json:"dianxin_channel_id"`
+	BusinessID        int64  `json:"business_id"` // 营销/行业服务
+	YidongChannelID   int64  `json:"yidong_channel_id"`
+	LiantongChannelID int64  `json:"liantong_channel_id"`
+	DianxinChannelID  int64  `json:"dianxin_channel_id"`
 	Status            int64  `json:"status"` // 1服务可用。2服务不可用
 	Deduct            string `json:"deduct"`
 }
@@ -48,23 +48,23 @@ type ClientSubmitMessageToBase struct {
 	Mobile       string   `json:"mobile"`
 	Messagetotal string   `json:"messagetotal"`
 	DevelopNo    string   `json:"develop_no"`
-	ServiceId    string   `json:"Service_Id"`
+	ServiceID    string   `json:"Service_Id"`
 	SourceAddr   string   `json:"Source_Addr"`
 	SubmitTime   string   `json:"Submit_time"`
 	Message      string   `json:"message"`
-	SendMsgid    []string `json:"send_msgid"`
-	Uid          int64    `json:"uid"`
+	SendMsgiD    []string `json:"send_msgid"`
+	UID          int64    `json:"uid"`
 	IsCheck      bool     `json:"is_check"`
 	TaskNo       string   `json:"task_no"`
 }
 
 // cmpp入队列格式修正为和http格式一致
-type HttpSubmitMessageInfo struct {
-	Uid               int64  `json:"uid"`
+type HTTPSubmitMessageInfo struct {
+	UID               int64  `json:"uid"`
 	Source            string `json:"source"`
-	YidongChannelId   int64  `json:"yidong_channel_id"`
-	LiantongChannelId int64  `json:"liantong_channel_id"`
-	DianxinChannelId  int64  `json:"dianxin_channel_id"`
+	YidongChannelID   int64  `json:"yidong_channel_id"`
+	LiantongChannelID int64  `json:"liantong_channel_id"`
+	DianxinChannelID  int64  `json:"dianxin_channel_id"`
 	IsneedReceipt     int64  `json:"isneed_receipt"`
 	NeedReceiptType   int64  `json:"need_receipt_type"`
 	IsHaveSelected    int64  `json:"is_have_selected"`
@@ -79,9 +79,9 @@ type HttpSubmitMessageInfo struct {
 	SendLength        int64  `json:"send_length"`
 	FreeTrial         int64  `json:"free_trial"`
 	AppointmentTime   int64  `json:"appointment_time"`
-	SendMsgId         string `json:"send_msg_id"`
+	SendMsgID         string `json:"send_msg_id"`
 	Extra             string `json:"extra"`
 	TaskNo            string `json:"task_no"`
 	SubmitTime        int64  `json:"submit_time"`
-	BusinessId        int    `json:"business_id"`
+	BusinessID        int    `json:"business_id"`
 }

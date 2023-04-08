@@ -20,9 +20,6 @@ type Sessions struct {
 func (sess *Sessions) GetUserConn(name string) int {
 	var conn int64
 	keyMaps := EtcdCli.GetPrefix("/SMSGateway")
-	if keyMaps == nil {
-
-	}
 	for k, v := range keyMaps {
 		logger.Debug().Msgf("key: %s, val: %s, name: %s", k, v, name)
 		if bytes.Contains([]byte(k), []byte(name)) {
@@ -49,8 +46,8 @@ func (sess *Sessions) Close(user string) {
 	if srvList, ok := sess.Users[user]; ok {
 		for i := 0; i < len(srvList); i++ {
 			s := sess.Users[user][i]
-			runId := user + ":" + fmt.Sprintf("%p", s.conn)
-			logger.Debug().Msgf("关闭账号:%s,close(s.ExitSrv)", runId)
+			runID := user + ":" + fmt.Sprintf("%p", s.conn)
+			logger.Debug().Msgf("关闭账号:%s,close(s.ExitSrv)", runID)
 			if !utils.ChIsClosed(s.ExitSrv) {
 				utils.CloseChan(&s.ExitSrv, s.mutex)
 			}

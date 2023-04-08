@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*common.OctetString) {
-	runId := s.RunId
+func (s *SrvConn) makeDeliverMsg(msgID uint64, destTerminalID []*common.OctetString) {
+	runID := s.RunID
 	registerDelivery := 1
 	var err error
 	var b []byte
 	var mobile []string
-	for _, v := range destTerminalId {
+	for _, v := range destTerminalID {
 		mobile = append(mobile, v.String())
 	}
 	//hsm.MobileContent = strings.Join(mobile, ",")
@@ -30,7 +30,7 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*common.OctetStr
 		}
 		b, err = json.Marshal(moMsg)
 		if err != nil {
-			s.Logger.Error().Msgf("帐号(%s) error marshal json:%v", runId, err)
+			s.Logger.Error().Msgf("帐号(%s) error marshal json:%v", runID, err)
 		}
 	}
 	if registerDelivery == 1 {
@@ -40,11 +40,11 @@ func (s *SrvConn) makeDeliverMsg(msgId uint64, destTerminalId []*common.OctetStr
 			SendTime:      strconv.Itoa(int(utils.GetCurrTimestamp("ms"))),
 			TaskNo:        utils.GetUuid(),
 			StatusMessage: "DELIVRD",
-			MsgId:         strconv.FormatUint(msgId, 10),
+			MsgId:         strconv.FormatUint(msgID, 10),
 		}
 		b, err = json.Marshal(deliverMsg)
 		if err != nil {
-			s.Logger.Error().Msgf("帐号(%s) error marshal json:%v", runId, err)
+			s.Logger.Error().Msgf("帐号(%s) error marshal json:%v", runID, err)
 		}
 	}
 	select {

@@ -14,12 +14,12 @@ import (
 	"time"
 )
 
-func SubmitMsgIdToQueue(s *SrvConn) {
+func SubmitMsgIDToQueue(s *SrvConn) {
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s.waitGroup.Wrap(func() { SubmitMsgIdToDB(ctx, s) }) //nsqd集群失败处理协程
+	s.waitGroup.Wrap(func() { SubmitMsgIDToDB(ctx, s) }) //nsqd集群失败处理协程
 
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
@@ -38,14 +38,14 @@ func SubmitMsgIdToQueue(s *SrvConn) {
 		}
 	}
 EXIT:
-	s.Logger.Debug().Msgf("账号(%s) Exiting SubmitMsgIdToQueue...", s.RunId)
+	s.Logger.Debug().Msgf("账号(%s) Exiting SubmitMsgIdToQueue...", s.RunID)
 }
 
 func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 	flag := false
-	var sendMsgId []string
+	var sendMsgID []string
 	var content []byte
-	msgId := strconv.FormatUint(p.MsgId, 10)
+	msgID := strconv.FormatUint(p.MsgId, 10)
 	if p.TPUdhi == 1 { //长短信
 		byte4 := p.MsgContent[0:6][3]
 		pkTotal := p.PkTotal
@@ -57,66 +57,67 @@ func smsAssemble(p *cmpp.Submit, s *SrvConn) {
 		if ls != nil && ls.len() == pkTotal {
 			for i := uint8(1); i <= pkTotal; i++ {
 				ID, buf := ls.get(i)
-				sendMsgId = append(sendMsgId, ID)
+				sendMsgID = append(sendMsgID, ID)
 				content = append(content, buf...)
 			}
 			s.lsm.del(byte4)
 			flag = true
 			if utils.Debug {
-				s.Logger.Debug().Msgf("组合成长短信msgID：%s,s.longSms.len:%d", sendMsgId, s.lsm.len())
+				s.Logger.Debug().Msgf("组合成长短信msgID：%s,s.longSms.len:%d", sendMsgID, s.lsm.len())
 			}
 		}
 		s.lsmLock.Unlock()
 
 		if utils.Debug {
-			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgId)
+			s.Logger.Debug().Msgf("拆分的短信msgID：%s", msgID)
 		}
 	} else if p.TPUdhi == 0 { //普通短信
 		content = p.MsgContent
-		sendMsgId = append(sendMsgId, msgId)
+		sendMsgID = append(sendMsgID, msgID)
 		flag = true
 	}
 
 	if flag {
-		hsm := &HttpSubmitMessageInfo{}
-		var destTerminalId []string
+		hsm := &HTTPSubmitMessageInfo{}
+		var destTerminalID []string
 		if p.MsgFmt == common.UCS2 {
 			content = utils.Ucs2ToUtf8(content)
 		} else if p.MsgFmt == common.GB18030 {
 			content = utils.GbkToUtf8(content)
 		} else {
+			s.Logger.Error().Msgf("p.MsgFmt: %v", p.MsgFmt)
 
 		}
 		if utils.Debug {
 			s.Logger.Debug().Msgf("长短信内容：%s", string(content))
 		}
 		hsm.TaskContent = string(content)
-		hsm.DevelopNo = p.SrcId.String()[len(s.Account.CmppDestId):]
+		hsm.DevelopNo = p.SrcId.String()[len(s.Account.CmppDestID):]
 		for _, v := range p.DestTerminalId {
-			destTerminalId = append(destTerminalId, v.String())
+			destTerminalID = append(destTerminalID, v.String())
 		}
-		hsm.MobileContent = strings.Join(destTerminalId, ",")
-		hsm.SendMsgId = strings.Join(sendMsgId, ",")
+		hsm.MobileContent = strings.Join(destTerminalID, ",")
+		hsm.SendMsgID = strings.Join(sendMsgID, ",")
 		hsm.Wrapper(s)
 		count := atomic.AddInt64(&s.SubmitToQueueCount, 1)
 		if count%int64(utils.PeekInterval) == 0 {
 			s.Logger.Debug().Msgf("账号(%s) 提交消息入队列，SeqId: %d, sendMsgId: %s, s.SubmitChan len: %d,"+
-				"s.SubmitToQueueCount: %d, ", s.RunId, p.SeqId, sendMsgId, len(s.SubmitChan), count)
+				"s.SubmitToQueueCount: %d, ", s.RunID, p.SeqId, sendMsgID, len(s.SubmitChan), count)
 			s.Logger.Debug().Msgf("长短信：s.longSms.len:%d", s.lsm.len())
 		}
 	}
 }
 
-func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
+func (hsm *HTTPSubmitMessageInfo) Wrapper(s *SrvConn) {
 	var topicName string
 	var freeTrial int64
 	discard := true
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 
-	hsm.Uid = s.Account.Id
-	businessId := s.Account.BusinessId
-	if businessId == 5 {
+	hsm.UID = s.Account.ID
+	businessID := s.Account.BusinessID
+	if businessID == 5 {
 		topicName = "nsq.httpmarketing.submit.process"
 		freeTrial = s.Account.MarketFreeTrial
 
@@ -128,28 +129,28 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	//s.Logger.Debug().Msgf("s.Account :%v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 	for _, v := range s.Account.BusinessInfo {
 		//s.Logger.Debug().Msgf("v:%v,v.BusinessId:%v,businessId:%v, v.Status:%v", v, v.BusinessId, businessId, v.Status)
-		if v.BusinessId == businessId {
+		if v.BusinessID == businessID {
 			if v.Status != 1 {
 				break
 			}
 			discard = false
 			hsm.Deduct = v.Deduct
 
-			if v.YidongChannelId != 0 && v.LiantongChannelId != 0 && v.DianxinChannelId != 0 {
-				hsm.YidongChannelId = v.YidongChannelId
-				hsm.LiantongChannelId = v.LiantongChannelId
-				hsm.DianxinChannelId = v.DianxinChannelId
+			if v.YidongChannelID != 0 && v.LiantongChannelID != 0 && v.DianxinChannelID != 0 {
+				hsm.YidongChannelID = v.YidongChannelID
+				hsm.LiantongChannelID = v.LiantongChannelID
+				hsm.DianxinChannelID = v.DianxinChannelID
 				hsm.SendStatus = 2
 			} else {
-				hsm.YidongChannelId = 0
-				hsm.LiantongChannelId = 0
-				hsm.DianxinChannelId = 0
+				hsm.YidongChannelID = 0
+				hsm.LiantongChannelID = 0
+				hsm.DianxinChannelID = 0
 				hsm.SendStatus = 1
 			}
 		}
 	}
 	if discard { //短信丢弃
-		s.Logger.Error().Msgf("丢弃的短信:%v", hsm.SendMsgId)
+		s.Logger.Error().Msgf("丢弃的短信:%v", hsm.SendMsgID)
 		return
 	}
 	sendLen := int64(len([]rune(hsm.TaskContent)))
@@ -171,37 +172,37 @@ func (hsm *HttpSubmitMessageInfo) Wrapper(s *SrvConn) {
 	hsm.Extra = `{"from":"cmppserver"}`
 	hsm.TaskNo = utils.GetUuid()
 	hsm.SubmitTime = time.Now().Unix()
-	if err := hsm.enQueue(topicName, s.RunId); err != nil {
+	if err := hsm.enQueue(topicName, s.RunID); err != nil {
 		select {
 		case s.hsmChan <- *hsm: //入nsq失败后入mysql
 		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) 写管道 s.HsmChan 超时, Tick at %v", s.RunId, t)
-			s.Logger.Debug().Msgf("账号(%s) record hsm: %v ", s.RunId, hsm)
+			s.Logger.Debug().Msgf("账号(%s) 写管道 s.HsmChan 超时, Tick at %v", s.RunID, t)
+			s.Logger.Debug().Msgf("账号(%s) record hsm: %v ", s.RunID, hsm)
 		}
 	}
 }
 
-func (hsm HttpSubmitMessageInfo) enQueue(topicName string, runId string) error {
+func (hsm HTTPSubmitMessageInfo) enQueue(topicName string, runID string) error {
 	b, err := json.Marshal(hsm)
 	if err != nil {
-		logger.Error().Msgf("账号(%s) json.Marshal error:", runId, err)
+		logger.Error().Msgf("账号(%s) json.Marshal error:", runID, err)
 		return err
 	}
 
 	if err = models.Prn.PubMgr.Publish(topicName, b); err != nil {
-		logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", runId, err, topicName)
+		logger.Error().Msgf("账号(%s) models.Prn.PubMgr.Publish error:%v, topicName: %s", runID, err, topicName)
 		return err
 	}
 	return nil
 }
 
-type arrMsgs []HttpSubmitMessageInfo
+type arrMsgs []HTTPSubmitMessageInfo
 
 func (a arrMsgs) batchCreate(s *SrvConn) {
 	var tbName1 string
 	var tbName2 string
 
-	if s.Account.BusinessId == 5 { //营销
+	if s.Account.BusinessID == 5 { //营销
 		tbName1 = "yx_user_send_task_fornsqd"
 		tbName2 = "yx_user_send_task_content_fornsqd"
 	} else {
@@ -211,13 +212,13 @@ func (a arrMsgs) batchCreate(s *SrvConn) {
 
 	t1, t2 := a.BatchHandle()
 	if err := models.DB.Table(tbName1).Create(&t1).Error; err != nil {
-		s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunId, tbName1, err)
-		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, tbName1, t1)
+		s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunID, tbName1, err)
+		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunID, tbName1, t1)
 	}
 	//logger.Debug().Msgf("通道%v,入库成功记录：%d", t1,len(t1))
 	if err := models.DB.Table(tbName2).Create(&t2).Error; err != nil {
-		s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunId, tbName2, err)
-		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunId, tbName2, t2)
+		s.Logger.Error().Msgf("账号(%s) db insert table (%s) error:%v", s.RunID, tbName2, err)
+		s.Logger.Error().Msgf("账号(%s) record table(%s) : %v ", s.RunID, tbName2, t2)
 	}
 	//logger.Debug().Msgf("通道%v,入库成功记录：%d", t2,len(t2))
 }
@@ -228,19 +229,19 @@ func (a arrMsgs) BatchHandle() ([]models.Yx_user_send_task_fronsqd, []models.Yx_
 
 	for _, msg := range a {
 		// logger.Debug().Msgf("-----msg:",msg)
-		yx_user_send_code_task_fronsqd := models.Yx_user_send_task_fronsqd{
+		yxUserSendCodeTaskFroNsqd := models.Yx_user_send_task_fronsqd{
 			Task_no:             msg.TaskNo,
-			Uid:                 msg.Uid,
-			Send_msg_id:         msg.SendMsgId,
+			Uid:                 msg.UID,
+			Send_msg_id:         msg.SendMsgID,
 			Source:              msg.Source,
 			Real_num:            msg.RealNum,
 			Send_num:            msg.SendNum,
 			Send_length:         msg.SendLength,
 			Free_trial:          msg.FreeTrial,
 			Develop_no:          msg.DevelopNo,
-			Yidong_channel_id:   msg.YidongChannelId,
-			Liantong_channel_id: msg.LiantongChannelId,
-			Dianxin_channel_id:  msg.DianxinChannelId,
+			Yidong_channel_id:   msg.YidongChannelID,
+			Liantong_channel_id: msg.LiantongChannelID,
+			Dianxin_channel_id:  msg.DianxinChannelID,
 			Send_status:         msg.SendStatus,
 			Submit_time:         msg.SubmitTime,
 			Isneed_receipt:      msg.IsneedReceipt,
@@ -254,20 +255,20 @@ func (a arrMsgs) BatchHandle() ([]models.Yx_user_send_task_fronsqd, []models.Yx_
 			Delete_time:         time.Now().Unix(),
 			Appointment_time:    msg.AppointmentTime,
 		}
-		t1 = append(t1, yx_user_send_code_task_fronsqd)
+		t1 = append(t1, yxUserSendCodeTaskFroNsqd)
 
-		yx_user_send_task_content_fornsqd := models.Yx_user_send_task_content_fornsqd{
+		yxUserSendTaskContentForNsqd := models.Yx_user_send_task_content_fornsqd{
 			Task_no:        msg.TaskNo,
 			Task_content:   msg.TaskContent,
 			Mobile_content: msg.MobileContent,
 			Create_time:    msg.SubmitTime,
 		}
-		t2 = append(t2, yx_user_send_task_content_fornsqd)
+		t2 = append(t2, yxUserSendTaskContentForNsqd)
 	}
 	return t1, t2
 }
 
-func SubmitMsgIdToDB(ctx context.Context, s *SrvConn) {
+func SubmitMsgIDToDB(ctx context.Context, s *SrvConn) {
 	var todb = false
 	a := arrMsgs{}
 	timer := time.NewTimer(utils.Timeout)
@@ -284,7 +285,7 @@ func SubmitMsgIdToDB(ctx context.Context, s *SrvConn) {
 		case hsm := <-s.hsmChan:
 			a = append(a, hsm)
 		case <-ctx.Done():
-			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 SubmitMsgIdToDB 协程....", s.RunId)
+			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 SubmitMsgIdToDB 协程....", s.RunID)
 			return
 		case <-timer.C:
 			//logger.Debug().Msgf("账号(%s) SubmitMsgIdToDB Tick at: %v", s.RunId, t)
@@ -292,20 +293,3 @@ func SubmitMsgIdToDB(ctx context.Context, s *SrvConn) {
 		}
 	}
 }
-
-//type DeliverMsgInfo struct {
-//	TaskNo        string `json:"task_no"`
-//	StatusMessage string `json:"status_message"`
-//	MessageInfo   string `json:"message_info"`
-//	Mobile        string `json:"mobile"`
-//	MsgId         string `json:"msg_id"`
-//	SendTime      string `json:"send_time"`
-//}
-//
-//type MoMsgInfo struct {
-//	Mobile      string `json:"mobile"`
-//	MessageInfo string `json:"message_info"`
-//	BusinessId  int    `json:"business_id"`
-//	GetTime     string `json:"get_time"`
-//	DevelopNo   string `json:"develop_no"`
-//}

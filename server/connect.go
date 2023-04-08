@@ -39,7 +39,7 @@ type SrvConn struct {
 
 	addr       string
 	RemoteAddr string
-	RunId      string
+	RunID      string
 
 	ReadLoopRunning   int32
 	deliverSenderExit int32
@@ -53,26 +53,26 @@ type SrvConn struct {
 	deliverResendCountMap cmap.ConcurrentMap
 
 	ExitSrv         chan struct{}
-	hsmChan         chan HttpSubmitMessageInfo
+	hsmChan         chan HTTPSubmitMessageInfo
 	mapKeyInChan    chan string
 	SubmitChan      chan *cmpp.Submit
 	deliverRespChan chan cmpp.DeliverResp
 	commandChan     chan []byte
 	deliverFakeChan chan []byte
-	ATRespSeqId     chan uint32
+	ATRespSeqID     chan uint32
 
 	FlowVelocity *utils.FlowVelocity
 	RateLimit    *utils.RateLimit
 
 	SubmitToQueueCount  int64
 	DeliverSendCount    int
-	SeqId               uint32
-	LastSeqId           uint32
+	SeqID               uint32
+	LastSeqID           uint32
 	invalidMessageCount uint32
 	activeTestCount     uint32
 	submitTaskCount     int64
 	deliverTaskCount    int64
-	MsgId               uint64
+	MsgID               uint64
 	count               uint64
 }
 
@@ -129,7 +129,7 @@ func Listen(sess *Sessions) {
 func HandleNewConn(conn net.Conn, sess *Sessions) {
 	var resp *cmpp.ConnResp
 	var err error
-	var runId string
+	var runID string
 	var data []byte
 
 	qLen := utils.GetAttr("qlen")
@@ -140,11 +140,11 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		RemoteAddr:            sess.RemoteAddr,
 		SubmitChan:            make(chan *cmpp.Submit, qLen),
 		commandChan:           make(chan []byte, qLen),
-		hsmChan:               make(chan HttpSubmitMessageInfo, qLen),
+		hsmChan:               make(chan HTTPSubmitMessageInfo, qLen),
 		deliverRespChan:       make(chan cmpp.DeliverResp, qLen),
 		mapKeyInChan:          make(chan string, qLen),
 		ExitSrv:               make(chan struct{}),
-		ATRespSeqId:           make(chan uint32, 1),
+		ATRespSeqID:           make(chan uint32, 1),
 		deliverMsgMap:         cmap.New(),
 		deliverResendCountMap: cmap.New(),
 		rw:                    socket.NewPacketRW(conn),
@@ -195,15 +195,15 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	}
 
 	sess.Add(s.Account.NickName, s)
-	runId = s.Account.NickName + ":" + fmt.Sprintf("%p", s.conn)
-	s.Logger = levellogger.NewLogger(runId)
-	s.RunId = runId
-	s.rw.RunId = runId
-	//InitChan(runId) //go通道缓冲初始化
+	runID = s.Account.NickName + ":" + fmt.Sprintf("%p", s.conn)
+	s.Logger = levellogger.NewLogger(runID)
+	s.RunID = runID
+	s.rw.RunId = runID
+	//InitChan(runID) //go通道缓冲初始化
 
 	s.waitGroup.Wrap(func() { s.ReadLoop() })
 	time.Sleep(time.Duration(10) * time.Millisecond)
-	s.waitGroup.Wrap(func() { SubmitMsgIdToQueue(s) })
+	s.waitGroup.Wrap(func() { SubmitMsgIDToQueue(s) })
 	s.waitGroup.Wrap(func() { DeliverPush(s) })
 
 	s.waitGroup.Wait()
@@ -314,13 +314,13 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 
 	logger.Debug().Msgf("账号(%s) 登录成功，远程地址：%s", req.SourceAddr, s.RemoteAddr)
 	s.Account = account
-	s.Logger = levellogger.NewLogger(strconv.Itoa(int(s.Account.Id)))
+	s.Logger = levellogger.NewLogger(strconv.Itoa(int(s.Account.ID)))
 	return resp, nil
 }
 
 func (s *SrvConn) CloseConnection() {
 	if err := s.conn.Close(); err != nil {
-		logger.Error().Msgf("通道(%s) conn Unexpected close error: %v", s.RunId, err)
+		logger.Error().Msgf("通道(%s) conn Unexpected close error: %v", s.RunID, err)
 	}
 }
 
@@ -329,60 +329,43 @@ func (s *SrvConn) IsClosing() bool {
 }
 
 func (s *SrvConn) Close() {
-	runId := s.RunId
+	runID := s.RunID
 	if s.IsClosing() {
-		logger.Debug().Msgf("帐号(%s) Connection has closed, Peer ip: %s", runId, s.RemoteAddr)
+		logger.Debug().Msgf("帐号(%s) Connection has closed, Peer ip: %s", runID, s.RemoteAddr)
 		return
 	}
 	atomic.StoreInt32(&(s.CloseFlag), 1)
-	logger.Debug().Msgf("帐号(%s) conn will be closed: %v, Peer ip: %s", runId, s.conn, s.RemoteAddr)
+	logger.Debug().Msgf("帐号(%s) conn will be closed: %v, Peer ip: %s", runID, s.conn, s.RemoteAddr)
 	s.CloseConnection()
-	logger.Debug().Msgf("帐号(%s) Connection closed, Peer ip: %s", runId, s.RemoteAddr)
+	logger.Debug().Msgf("帐号(%s) Connection closed, Peer ip: %s", runID, s.RemoteAddr)
 }
 
 func (s *SrvConn) Cleanup() {
-	runId := s.RunId
-	s.Logger.Debug().Msgf("帐号(%s) 关闭网络连接，并清理缓存中的数据", runId)
+	runID := s.RunID
+	s.Logger.Debug().Msgf("帐号(%s) 关闭网络连接，并清理缓存中的数据", runID)
 
 	for {
 		t1 := len(s.mapKeyInChan)
 		if t1 == 0 {
 			break
-		} else {
-			select {
-			case mapKey := <-s.mapKeyInChan: // 清理回执发送控制缓冲队列
-				s.Logger.Debug().Msgf("帐号(%s) record Deliver mapKey：%s", runId, mapKey)
-				if _, ok := s.deliverMsgMap.Get(mapKey); ok {
-					s.deliverMsgMap.Remove(mapKey)
-				}
-			default:
-			}
 		}
-	}
-	s.Logger.Debug().Msgf("帐号(%s) 缓存数据已清理，Exiting Cleanup...", runId)
-}
+		select {
+		case mapKey := <-s.mapKeyInChan: // 清理回执发送控制缓冲队列
+			s.Logger.Debug().Msgf("帐号(%s) record Deliver mapKey：%s", runID, mapKey)
+			if _, ok := s.deliverMsgMap.Get(mapKey); ok {
+				s.deliverMsgMap.Remove(mapKey)
+			}
+		default:
+		}
 
-// func (s *SrvConn) loopMakeMsgId(ctx context.Context) {
-// 	timer := time.NewTimer(utils.Timeout)
-// 	defer timer.Stop()
-// 	timeout := time.Duration(2) * time.Second
-// 	MsgIdChan = make(chan uint64, 10000)
-// 	for {
-// 		utils.ResetTimer(timer, timeout)
-// 		select {
-// 		case <-ctx.Done():
-// 			s.Logger.Debug().Msgf("帐号(%s) Exiting loopMakeMsgId...", s.RunId)
-// 			return
-// 		case MsgIdChan <- GenerateMsgID():
-// 		case <-timer.C:
-// 		}
-// 	}
-// }
+	}
+	s.Logger.Debug().Msgf("帐号(%s) 缓存数据已清理，Exiting Cleanup...", runID)
+}
 
 func (s *SrvConn) ReadLoop() {
 	atomic.StoreInt32(&s.ReadLoopRunning, 1)
 	timer := time.NewTimer(utils.Timeout)
-	runId := s.RunId
+	runID := s.RunID
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.waitGroup.Wrap(func() { s.HandleCommand(ctx) })
@@ -395,15 +378,15 @@ func (s *SrvConn) ReadLoop() {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				time.Sleep(time.Duration(1) * time.Second)
 				s.Logger.Error().Msgf("通道(%s) IO Timeout - %s",
-					runId, err)
+					runID, err)
 				continue
 			}
 			if err == io.EOF {
-				s.Logger.Error().Msgf("通道(%s) IO EOF error %s, s.IsClosing:%v", runId, err, s.IsClosing())
+				s.Logger.Error().Msgf("通道(%s) IO EOF error %s, s.IsClosing:%v", runID, err, s.IsClosing())
 				goto EXIT
 			}
 			if !strings.Contains(err.Error(), "use of closed network connection") {
-				s.Logger.Error().Msgf("通道(%s) IO error - %s", runId, err)
+				s.Logger.Error().Msgf("通道(%s) IO error - %s", runID, err)
 			}
 			goto EXIT
 		}
@@ -414,18 +397,18 @@ func (s *SrvConn) ReadLoop() {
 			s.invalidMessageCount = 0
 		case <-timer.C:
 			s.Logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
-				runId, len(s.commandChan))
-			s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", runId, data)
+				runID, len(s.commandChan))
+			s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", runID, data)
 		}
 	}
 EXIT:
 	atomic.StoreInt32(&s.ReadLoopRunning, 0)
 	s.waitGroup.Wrap(func() { s.Cleanup() })
-	s.Logger.Debug().Msgf("账号(%s) Exiting ReadLoop...", runId)
+	s.Logger.Debug().Msgf("账号(%s) Exiting ReadLoop...", runID)
 }
 
 func (s *SrvConn) HandleCommand(ctx context.Context) {
-	runId := s.RunId
+	runID := s.RunID
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 
@@ -433,17 +416,17 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 		s.Account.ConnFlowVelocity = 300
 	}
 
-	var rateLimit = utils.NewRateLimit(s.Account.ConnFlowVelocity, runId, runMode)
+	var rateLimit = utils.NewRateLimit(s.Account.ConnFlowVelocity, runID, runMode)
 	s.RateLimit = rateLimit
 
-	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runId)
+	s.Logger.Debug().Msgf("账号(%s) 启动 HandleCommand 协程", runID)
 	h := &cmpp.Header{}
 	r := cmpp.NewActiveTestResp()
 
 	for {
 		select {
 		case <-s.ExitSrv:
-			s.Logger.Debug().Msgf("账号(%s) 接收到 s.ExitSrv 退出信号, 退出 HandleCommand 协程....", runId)
+			s.Logger.Debug().Msgf("账号(%s) 接收到 s.ExitSrv 退出信号, 退出 HandleCommand 协程....", runID)
 			if atomic.LoadInt32(&s.terminateSent) == 0 {
 				t := cmpp.NewTerminate()
 				_ = t.IOWrite(s.rw)
@@ -462,38 +445,38 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 			h.UnPack(data[:common.CMPP_HEADER_SIZE])
 			switch h.CmdId {
 			case common.CMPP_ACTIVE_TEST:
-				s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runId, h.SeqId)
+				// s.Logger.Debug().Msgf("账号(%s) 收到激活测试命令(CMPP_ACTIVE_TEST), SeqId: %d", runID, h.SeqId)
 				r.SeqId = h.SeqId
 				if err := r.IOWrite(s.rw); err != nil {
 					s.Logger.Error().Msgf("发送数据失败,error:%v", err)
-					s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
+					s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runID)
 					utils.CloseChan(&s.ExitSrv, s.mutex)
 				}
 				atomic.StoreUint32(&s.activeTestCount, 0)
 
 			case common.CMPP_ACTIVE_TEST_RESP:
-				s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runId, h.SeqId)
+				// s.Logger.Debug().Msgf("账号(%s) 收到激活测试应答命令(CMPP_ACTIVE_TEST_RESP), SeqId: %d", runID, h.SeqId)
 				select {
-				case s.ATRespSeqId <- h.SeqId:
+				case s.ATRespSeqID <- h.SeqId:
 				case <-timer.C:
 				}
 
 			case common.CMPP_TERMINATE:
-				s.Logger.Warn().Msgf("账号(%s) 收到拆除连接命令(CMPP_TERMINATE), SeqId:%d", runId, h.SeqId)
-				s.Logger.Info().Msgf("账号(%s) 发送拆除连接应答命令(CMPP_TERMINATE_RESP)", runId)
+				s.Logger.Warn().Msgf("账号(%s) 收到拆除连接命令(CMPP_TERMINATE), SeqId:%d", runID, h.SeqId)
+				s.Logger.Info().Msgf("账号(%s) 发送拆除连接应答命令(CMPP_TERMINATE_RESP)", runID)
 				if err := cmpp.NewTerminateResp().IOWrite(s.rw); err != nil { //拆除连接
-					s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE_RESP IOWrite: %v", runId, err)
+					s.Logger.Error().Msgf("账号(%s) CMPP_TERMINATE_RESP IOWrite: %v", runID, err)
 				}
 				goto EXIT
 
 			case common.CMPP_TERMINATE_RESP:
-				s.Logger.Debug().Msgf("账号(%s) 收到拆除连接应答命令(CMPP_TERMINATE_RESP), SeqId:%d", runId, h.SeqId)
+				s.Logger.Debug().Msgf("账号(%s) 收到拆除连接应答命令(CMPP_TERMINATE_RESP), SeqId:%d", runID, h.SeqId)
 				goto EXIT
 
 			case common.CMPP_SUBMIT:
 				count := atomic.AddInt64(&s.submitTaskCount, 1)
 				if int(count) > 50 {
-					s.Logger.Warn().Msgf("账号(%s) s.submitTaskCount: %d, sleep 100ms", runId, count)
+					s.Logger.Warn().Msgf("账号(%s) s.submitTaskCount: %d, sleep 100ms", runID, count)
 					time.Sleep(time.Duration(100) * time.Millisecond)
 				}
 				s.waitGroup.Wrap(func() { s.handleSubmit(data) })
@@ -503,14 +486,14 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 				s.waitGroup.Wrap(func() { s.handleDeliverResp(data) })
 
 			default:
-				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runId, *h)
+				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runID, *h)
 				// time.Sleep(time.Duration(1000) * time.Nanosecond)
 			}
 		case <-timer.C:
-			//s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at", runId)
+			//s.Logger.Debug().Msgf("账号(%s) HandleCommand Tick at", runID)
 			select {
 			case <-ctx.Done():
-				s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号, 退出 HandleCommand 协程....", runId)
+				s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号, 退出 HandleCommand 协程....", runID)
 				goto EXIT
 			default:
 			}
@@ -520,7 +503,7 @@ EXIT:
 	if !s.IsClosing() {
 		s.Close() //关闭网络读写
 	}
-	s.Logger.Debug().Msgf("账号(%s) Exiting HandleCommand...", runId)
+	s.Logger.Debug().Msgf("账号(%s) Exiting HandleCommand...", runID)
 }
 
 func (s *SrvConn) handleSubmit(data []byte) {
@@ -529,13 +512,13 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	h := &cmpp.Header{}
 	h.UnPack(data[:common.CMPP_HEADER_SIZE])
 	buf := data[common.CMPP_HEADER_SIZE:]
-	runId := s.RunId
+	runID := s.RunID
 	resp := cmpp.NewSubmitResp()
 	p := &cmpp.Submit{}
 	resp.MsgId = <-utils.MsgIdChan
 	if resp.MsgId == 0 {
 		s.Logger.Error().Msgf("msgId generate error:")
-		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runId)
+		s.Logger.Error().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE)", runID)
 		goto EXIT
 	}
 	resp.SeqId = h.SeqId
@@ -550,17 +533,17 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	}
 
 	if err = resp.IOWrite(s.rw); err != nil {
-		s.Logger.Error().Msgf("账号(%s) SubmitResp IOWrite error: %v", runId, err)
+		s.Logger.Error().Msgf("账号(%s) SubmitResp IOWrite error: %v", runID, err)
 		goto EXIT
 	}
 
 	if count%uint64(utils.PeekInterval) == 0 {
 		s.Logger.Debug().Msgf("账号(%s) 收到消息提交(CMPP_SUBMIT), count: %d,resp.SeqId:%d,resp.MsgId:%d,"+
-			"s.submitTaskCount:%d,s.SubmitChan len:%d", runId, s.count, resp.SeqId, resp.MsgId,
+			"s.submitTaskCount:%d,s.SubmitChan len:%d", runID, s.count, resp.SeqId, resp.MsgId,
 			atomic.LoadInt64(&s.submitTaskCount), len(s.SubmitChan))
 	}
 
-	s.LastSeqId = h.SeqId
+	s.LastSeqID = h.SeqId
 	if resp.Result == 0 {
 		if FakeGateway == 1 { //模拟网关服务器
 			go s.makeDeliverMsg(p.MsgId, p.DestTerminalId)
@@ -569,15 +552,15 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			select {
 			case s.SubmitChan <- p:
 			case t := <-timer.C:
-				s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runId, t)
-				s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunId, p)
+				s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runID, t)
+				s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunID, p)
 			}
 		}
 	} else {
 		// 注意：需要断开处理
-		s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runId, resp.Result)
+		s.Logger.Warn().Msgf("账号(%s) 发送拆除连接命令(CMPP_TERMINATE),resp.Result:%d", runID, resp.Result)
 		if err := cmpp.NewTerminate().IOWrite(s.rw); err != nil { //拆除连接
-			s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runId, err)
+			s.Logger.Error().Msgf("账号(%s) Terminate IOWrite error: %v", runID, err)
 		}
 		time.Sleep(time.Duration(1) * time.Second)
 		goto EXIT
@@ -585,54 +568,54 @@ func (s *SrvConn) handleSubmit(data []byte) {
 	atomic.AddInt64(&s.submitTaskCount, -1)
 	return
 EXIT:
-	s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
+	s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runID)
 	utils.CloseChan(&s.ExitSrv, s.mutex)
 	atomic.AddInt64(&s.submitTaskCount, -1)
 }
 
 func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
-	runId := s.RunId
+	runID := s.RunID
 	if !s.RateLimit.Available() {
-		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runId, s.RateLimit.Lim.Burst())
+		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", &runID, s.RateLimit.Lim.Burst())
 		return common.ErrnoSubmitNotPassFlowControl
 	}
 
-	if s.LastSeqId == p.SeqId && s.LastSeqId != 0 {
+	if s.LastSeqID == p.SeqId && s.LastSeqID != 0 {
 		s.Logger.Error().Msgf("账号(%s) s.LastSeqId(%d) == h.SeqId(%d) && s.LastSeqId != 0",
-			runId, s.LastSeqId, p.SeqId)
+			&runID, s.LastSeqID, p.SeqId)
 		return common.ErrnoSubmitInvalidSequence
 	}
 
 	if p.RegisteredDelivery < 0 && p.RegisteredDelivery > 2 {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:p.RegisteredDelivery != 0-2", runID)
 		return common.ErrnoSubmitInvalidStruct
 	}
 
 	if p.MsgSrc.String() != s.Account.NickName {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.MsgSrc.String: %s", runId, p.MsgSrc.String())
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.NickName != p.MsgSrc.String: %s", runID, p.MsgSrc.String())
 		return common.ErrnoDeliverInvalidStruct
 	}
 
 	regexpStr := "^" + p.SrcId.String()
-	re := regexp.MustCompile(s.Account.CmppDestId)
+	re := regexp.MustCompile(s.Account.CmppDestID)
 	if !re.MatchString(regexpStr) {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ p.SrcId.String()", runId)
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:s.Account.CmppDestId !~ p.SrcId.String()", runID)
 		return common.ErrnoSubmitInvalidSrcId
 	}
 
-	if len(p.SrcId.String()) < len(s.Account.CmppDestId) {
-		s.Logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runId)
+	if len(p.SrcId.String()) < len(s.Account.CmppDestID) {
+		s.Logger.Error().Msgf("账号(%s) 提交的信息:len(p.SrcId.String()) < len(s.Account.CmppDestId)", runID)
 		return common.ErrnoSubmitInvalidSrcId
 	}
 
 	discard := true
 	var status int64
-	businessId := s.Account.BusinessId
+	businessID := s.Account.BusinessID
 	// s.Logger.Debug().Msgf("s.Account: %v,s.Account.BusinessInfo:%v", s.Account, s.Account.BusinessInfo)
 	bsInfos := s.GetBusinessInfo()
 	for _, v := range bsInfos {
 		// s.Logger.Debug().Msgf("businessinfo: %v", v)
-		if v.BusinessId == businessId {
+		if v.BusinessID == businessID {
 			status = v.Status
 			if status != 1 { // 服务不可用
 				break
@@ -641,19 +624,18 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		}
 	}
 	if discard {
-		s.Logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runId, businessId, status)
+		s.Logger.Error().Msgf("账号(%s) 提交的短信未找到对应的服务，businessId：%v, status:%v", runID, businessID, status)
 		return common.ErrnoSubmitInvalidService
 	}
 
-	if p.TPUdhi == 0 {
-	} else if p.TPUdhi == 1 { //长短信检验
+	if p.TPUdhi == 1 { //长短信检验
 		cLen := len(p.MsgContent)
 		if cLen < 6 {
-			s.Logger.Error().Msgf("账号(%s) 提交的长短信缺少头信息, cLen:%d", runId, cLen)
+			s.Logger.Error().Msgf("账号(%s) 提交的长短信缺少头信息, cLen:%d", runID, cLen)
 			return common.ErrnoSubmitInvalidStruct
 		}
 		byte4 := p.MsgContent[0:6][3]
-		msgId := strconv.FormatUint(p.MsgId, 10)
+		msgID := strconv.FormatUint(p.MsgId, 10)
 		s.lsLock.Lock()
 		defer s.lsLock.Unlock()
 		if !s.lsm.exist(byte4) {
@@ -667,18 +649,18 @@ func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 		ls := s.lsm.get(byte4)
 		if ls.exist(p.PkNumber) {
 			s.Logger.Error().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d 长短信标志位重复",
-				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId)
+				s.RunID, p.PkTotal, p.PkNumber, byte4, msgID, p.MsgId)
 			id, content := ls.get(p.PkNumber)
 			s.Logger.Error().Msgf("old msgId:%s,content:%v", id, content)
 			return common.ErrnoSubmitInvalidStruct
 		}
-		ls.set(p.PkNumber, msgId, p.MsgContent[6:])
+		ls.set(p.PkNumber, msgID, p.MsgContent[6:])
 		if utils.Debug {
 			s.Logger.Debug().Msgf("账号(%s) pkTotal:%d, pkNumber:%d, byte4:%d, msgID string:%s, msgID:%d, s.longSms len:%d",
-				s.RunId, p.PkTotal, p.PkNumber, byte4, msgId, p.MsgId, s.lsm.len())
+				s.RunID, p.PkTotal, p.PkNumber, byte4, msgID, p.MsgId, s.lsm.len())
 		}
-	} else {
-		s.Logger.Error().Msgf("账号(%s) 提交的TPPid值不合法:%d", runId, p.TPPid)
+	} else if p.TPUdhi != 0 {
+		s.Logger.Error().Msgf("账号(%s) 提交的TPPid值不合法:%d", runID, p.TPPid)
 		return common.ErrnoSubmitInvalidStruct
 	}
 	return 0
@@ -688,13 +670,13 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	h := &cmpp.Header{}
 	h.UnPack(data[:common.CMPP_HEADER_SIZE])
 	buf := data[common.CMPP_HEADER_SIZE:]
-	runId := s.RunId
+	runID := s.RunID
 	dr := &cmpp.DeliverResp{}
 	dr.UnPack(buf)
 	dr.SeqId = h.SeqId
 	if dr.Result != 0 {
 		s.Logger.Error().Msgf("账号(%s) 接收到的 CMPP_DELIVER_RESP Result: %d, msgId: %d",
-			runId, dr.Result, dr.MsgId)
+			runID, dr.Result, dr.MsgId)
 	}
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
@@ -702,7 +684,7 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	select {
 	case s.deliverRespChan <- *dr:
 	case t := <-timer.C:
-		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runId, t)
+		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runID, t)
 	}
 	atomic.AddInt64(&s.deliverTaskCount, -1)
 }
@@ -747,7 +729,7 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 
-	runId := s.RunId
+	runID := s.RunID
 	hbTime := config.GetHBTime()
 	timeout := hbTime.Timeout
 	retry := hbTime.Retry
@@ -757,30 +739,30 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 	}
 
 	p := cmpp.NewActiveTest()
-	p.SeqId = atomic.LoadUint32(&s.SeqId)
-	s.Logger.Debug().Msgf("账号(%s) 启动 LoopActiveTest", runId)
+	p.SeqId = atomic.LoadUint32(&s.SeqID)
+	s.Logger.Debug().Msgf("账号(%s) 启动 LoopActiveTest", runID)
 	for {
 		if atomic.LoadInt32(&s.ReadLoopRunning) == 0 {
-			s.Logger.Debug().Msgf("通道(%s) c.ReadLoopRunning: 0， 退出LoopActiveTest", runId)
+			s.Logger.Debug().Msgf("通道(%s) c.ReadLoopRunning: 0， 退出LoopActiveTest", runID)
 			goto EXIT
 		}
 
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
-		case <-s.ATRespSeqId:
+		case <-s.ATRespSeqID:
 			//c.Logger.Debug().Msgf("账号(%s)接收到心跳应答包(CMPP_ACTIVE_TEST_RESP),RespSeqId: %d, timer1: %d, timer2: %d", chid, RespSeqId, timer1,timer2)
 			sendTry = 0
 		case <-ctx.Done():
-			s.Logger.Debug().Msgf("账号(%s) 接收到ctx.Done信号，退出LoopActiveTest", runId)
+			s.Logger.Debug().Msgf("账号(%s) 接收到ctx.Done信号，退出LoopActiveTest", runID)
 			goto EXIT
 		case <-timer.C:
 		}
 
 		if sendTry < retry && count%tick == 0 {
-			p.SeqId = atomic.AddUint32(&s.SeqId, 1)
-			//s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST), seqId: %d", runId, p.SeqId)
+			p.SeqId = atomic.AddUint32(&s.SeqID, 1)
+			//s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST), seqId: %d", runID, p.SeqId)
 			if err := p.IOWrite(s.rw); err != nil {
-				//s.Logger.Error().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST)失败:%v", runId, err)
+				//s.Logger.Error().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST)失败:%v", runID, err)
 				timer1 = tick + 1
 				sendTry = 3
 			}
@@ -788,8 +770,8 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 		}
 		if timer1 > tick && sendTry >= retry {
 			s.Logger.Debug().Msgf("账号(%s) 发送心跳包命令(CMPP_ACTIVE_TEST) send try: %d and "+
-				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runId, sendTry, timer1)
-			s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runId)
+				"接收心跳包命令(CMPP_ACTIVE_TEST_RESP) timeout: %d, will exit ", runID, sendTry, timer1)
+			s.Logger.Debug().Msgf("通道(%s) close(c.ExitSrv)", runID)
 
 			utils.CloseChan(&s.ExitSrv, s.mutex)
 		}
@@ -798,5 +780,5 @@ func (s *SrvConn) LoopActiveTest(ctx context.Context) {
 
 	}
 EXIT:
-	s.Logger.Debug().Msgf("账号(%s) Exiting LoopActiveTest...", runId)
+	s.Logger.Debug().Msgf("账号(%s) Exiting LoopActiveTest...", runID)
 }

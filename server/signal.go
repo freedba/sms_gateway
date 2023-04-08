@@ -18,8 +18,8 @@ func signalHandle(sess *Sessions) {
 	for user, srvList := range sess.Users {
 		for i := 0; i < len(srvList); i++ {
 			s := sess.Users[user][i]
-			runId := user + ":" + fmt.Sprintf("%p", s.conn)
-			logger.Debug().Msgf("账号(%s) 关闭连接,close(s.ExitSrv)", runId)
+			runID := user + ":" + fmt.Sprintf("%p", s.conn)
+			logger.Debug().Msgf("账号(%s) 关闭连接,close(s.ExitSrv)", runID)
 			utils.CloseChan(&s.ExitSrv)
 		}
 	}

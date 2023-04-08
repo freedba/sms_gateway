@@ -15,11 +15,11 @@ func init() {
 	logger.Info().Msgf("pkgName %s init zerolog", pkgName)
 }
 
-func InitNodeId() {
+func InitNodeID() {
 	levellogger.NodeId = models.GetNodeId(runMode)
 	utils.NodeId = levellogger.NodeId
 }
 
-func InitSeqId() uint32 {
+func InitSeqID() uint32 {
 	return uint32(utils.NodeId * 1000000)
 }
