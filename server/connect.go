@@ -199,7 +199,6 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	s.Logger = levellogger.NewLogger(runID)
 	s.RunID = runID
 	s.rw.RunId = runID
-	//InitChan(runID) //go通道缓冲初始化
 
 	s.waitGroup.Wrap(func() { s.ReadLoop() })
 	time.Sleep(time.Duration(10) * time.Millisecond)
@@ -265,8 +264,6 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 
 	currConns := sess.GetUserConn(user)
 	maxConns := account.FlowVelocity / account.ConnFlowVelocity
-	//isLogin, ok := sess.Users[user]
-	//if ok && len(isLogin) == 5 {
 	if currConns+1 > maxConns {
 		logger.Error().Msgf("账号(%s) 当前建立的连接数已达最大允许连接数:%d", user, maxConns)
 		resp.Status = common.ErrnoConnectAuthFaild

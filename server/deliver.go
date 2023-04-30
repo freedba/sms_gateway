@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sms_lib/config"
 	"sms_lib/models"
 	"sms_lib/protocol/cmpp"
@@ -251,6 +252,10 @@ func (snd *deliverSender) msgWrite(ctx context.Context, msg []byte, registerDeli
 	case <-ctx.Done():
 		s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 deliverRespMsg 协程....", s.RunID)
 		return nil
+	case <-time.After(time.Second * 30):
+		logger.Error().Msgf("账号(%s) 回执应答超时, msg: %s", s.RunID, d.String())
+		text := fmt.Sprintf("警告：账号(%s) 回执应答超时", s.RunID)
+		utils.Alarm(text)
 	}
 
 	s.DeliverSendCount++
