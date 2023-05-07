@@ -393,9 +393,9 @@ func (s *SrvConn) ReadLoop() {
 		case s.commandChan <- data:
 			s.invalidMessageCount = 0
 		case <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
+			s.Logger.Error().Msgf("账号(%s) 数据写入管道 s.commandChan 超时,s.commandChan len: %d",
 				runID, len(s.commandChan))
-			s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", runID, data)
+			s.Logger.Error().Msgf("账号(%s) record Submit: %v ", runID, data)
 		}
 	}
 EXIT:
@@ -549,8 +549,8 @@ func (s *SrvConn) handleSubmit(data []byte) {
 			select {
 			case s.SubmitChan <- p:
 			case t := <-timer.C:
-				s.Logger.Debug().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runID, t)
-				s.Logger.Debug().Msgf("账号(%s) record Submit: %v ", s.RunID, p)
+				s.Logger.Error().Msgf("账号(%s) 写入管道 s.SubmitChan 超时, Tick at: %v", runID, t)
+				s.Logger.Error().Msgf("账号(%s) record Submit: %v ", s.RunID, p)
 			}
 		}
 	} else {
@@ -681,7 +681,7 @@ func (s *SrvConn) handleDeliverResp(data []byte) {
 	select {
 	case s.deliverRespChan <- *dr:
 	case t := <-timer.C:
-		s.Logger.Debug().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runID, t)
+		s.Logger.Error().Msgf("账号(%s) 写入管道 s.deliverRespChan 超时, Tick at: %v", runID, t)
 	}
 	atomic.AddInt64(&s.deliverTaskCount, -1)
 }

@@ -1,3 +1,12 @@
+/*
+ * @Author: jason hexie007@gmail.com
+ * @Date: 2023-04-30 22:03:42
+ * @LastEditors: jason hexie007@gmail.com
+ * @LastEditTime: 2023-05-07 18:42:57
+ * @Description:
+ *
+ * Copyright (c) 2023 by jason hexie007@gmail.com, All Rights Reserved.
+ */
 package server
 
 import "sms_lib/utils"

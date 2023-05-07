@@ -176,8 +176,8 @@ func (hsm *HTTPSubmitMessageInfo) Wrapper(s *SrvConn) {
 		select {
 		case s.hsmChan <- *hsm: //入nsq失败后入mysql
 		case t := <-timer.C:
-			s.Logger.Debug().Msgf("账号(%s) 写管道 s.HsmChan 超时, Tick at %v", s.RunID, t)
-			s.Logger.Debug().Msgf("账号(%s) record hsm: %v ", s.RunID, hsm)
+			s.Logger.Error().Msgf("账号(%s) 写管道 s.HsmChan 超时, Tick at %v", s.RunID, t)
+			s.Logger.Error().Msgf("账号(%s) record hsm: %v ", s.RunID, hsm)
 		}
 	}
 }
