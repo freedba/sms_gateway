@@ -18,6 +18,12 @@ import (
 	"github.com/youzan/go-nsq"
 )
 
+type deliverWithTime struct {
+	deliver  *cmpp.Deliver
+	sentTime int64
+	retries  int
+}
+
 type deliverSender struct {
 	deliverNmc *models.MessageHandler
 	moNmc      *models.MessageHandler
@@ -79,6 +85,7 @@ func (snd *deliverSender) consumeDeliverMsg() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.waitGroup.Wrap(func() { snd.handleDeliverResp(ctx) })
+	s.waitGroup.Wrap(func() { snd.checkDeliverMsgMap(ctx) })
 
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
@@ -246,7 +253,11 @@ func (snd *deliverSender) msgWrite(ctx context.Context, msg []byte, registerDeli
 		return err
 	}
 	mapKey := strconv.Itoa(int(s.Account.ID)) + ":" + strconv.Itoa(int(newSeqID))
-	s.deliverMsgMap.Set(mapKey, *d)
+	dwt := &deliverWithTime{
+		deliver:  d,
+		sentTime: utils.GetCurrTimestamp("s"),
+	}
+	s.deliverMsgMap.Set(mapKey, dwt)
 	select {
 	case s.mapKeyInChan <- mapKey: // 仅用作回执发送缓冲控制
 	case <-ctx.Done():
@@ -272,6 +283,7 @@ func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	for {
+		utils.ResetTimer(timer, utils.Timeout)
 		select {
 		case <-ctx.Done():
 			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 deliverRespMsg 协程....", runID)
@@ -279,50 +291,55 @@ func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
 		case resp := <-s.deliverRespChan:
 			seqID := resp.SeqId
 			mapKey := strconv.Itoa(int(s.Account.ID)) + ":" + strconv.Itoa(int(seqID))
-			if resp.Result != 0 {
-				s.Logger.Error().Msgf("账号(%s) deliver Resp.Result(%d) != 0,resp: %v", s.RunID, resp.Result, resp)
-				var count int
-				var d cmpp.Deliver
-				if tmp, ok := s.deliverMsgMap.Get(mapKey); ok {
-					d = tmp.(cmpp.Deliver)
-					if tmp, ok := s.deliverResendCountMap.Get(mapKey); ok {
-						count = tmp.(int)
-						count++
-					} else {
-						count = 1
-					}
-					if count < 3 {
-						s.deliverResendCountMap.Set(mapKey, count)
-						if err := d.IOWrite(s.rw); err != nil {
-							s.Logger.Error().Msgf("账号(%s) resend deliver msg error:%v,count:%d",
-								s.RunID, err, count)
-							return
-						}
-						s.Logger.Warn().Msgf("账号(%s) resend deliver msg, mapInKey:%s,count:%d",
-							s.RunID, mapKey, count)
-					} else {
-						select {
-						case <-s.mapKeyInChan:
-						default:
-						}
-						s.deliverMsgMap.Remove(mapKey)
-						s.deliverResendCountMap.Remove(mapKey)
-					}
-				}
-			} else {
+			if resp.Result == 0 {
 				select {
 				case <-s.mapKeyInChan:
-					if _, ok := s.deliverMsgMap.Get(mapKey); ok {
+					if s.deliverMsgMap.Has(mapKey) {
 						s.deliverMsgMap.Remove(mapKey)
-					}
-					if _, ok := s.deliverResendCountMap.Get(mapKey); ok {
-						s.deliverResendCountMap.Remove(mapKey)
 					}
 				default:
 				}
 			}
 		case <-timer.C:
 			//s.Logger.Debug().Msgf("账号(%s) s.deliverRespChan Tick at: %v", s.RunID, t)
+		}
+	}
+}
+
+func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
+	s := snd.s
+	runID := s.RunID
+	timer := time.NewTimer(utils.Timeout)
+	defer timer.Stop()
+	for {
+		now := utils.GetCurrTimestamp("s")
+		utils.ResetTimer(timer, utils.Timeout)
+		select {
+		case <-ctx.Done():
+			s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 checkDeliverMsgMap 协程....", runID)
+			return
+		case <-timer.C:
+		}
+
+		if s.deliverMsgMap.IsEmpty() {
+			continue
+		}
+		keys := s.deliverMsgMap.Keys()
+		for _, k := range keys {
+			if dwt, ok := s.deliverMsgMap.Get(k); ok {
+				if dwt.retries >= 3 {
+					s.deliverMsgMap.Remove(k)
+					continue
+				}
+				if now-dwt.sentTime >= int64(30*(dwt.retries+1)) {
+					s.Logger.Debug().Msgf("账号(%s) 重新推送回执信息, retry: %d, dwt.sentTime: %d", runID, dwt.retries, dwt.sentTime)
+					if err := dwt.deliver.IOWrite(s.rw); err != nil {
+						s.Logger.Error().Msgf("账号(%s) resend deliver msg error: %v,retry: %d",
+							runID, err, dwt.retries)
+					}
+					dwt.retries++
+				}
+			}
 		}
 	}
 }

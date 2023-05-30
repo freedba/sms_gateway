@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/chenhg5/collection"
-	cmap "github.com/orcaman/concurrent-map"
+	cmap "github.com/orcaman/concurrent-map/v2"
 	"golang.org/x/exp/slices"
 )
 
@@ -49,8 +49,7 @@ type SrvConn struct {
 	lsLock  *sync.Mutex
 	lsmLock *sync.Mutex
 
-	deliverMsgMap         cmap.ConcurrentMap
-	deliverResendCountMap cmap.ConcurrentMap
+	deliverMsgMap cmap.ConcurrentMap[string, *deliverWithTime]
 
 	ExitSrv         chan struct{}
 	hsmChan         chan HTTPSubmitMessageInfo
@@ -136,18 +135,18 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 	logger.Info().Msgf("队列缓冲值: %d", qLen)
 
 	s := &SrvConn{
-		conn:                  conn,
-		RemoteAddr:            sess.RemoteAddr,
-		SubmitChan:            make(chan *cmpp.Submit, qLen),
-		commandChan:           make(chan []byte, qLen),
-		hsmChan:               make(chan HTTPSubmitMessageInfo, qLen),
-		deliverRespChan:       make(chan cmpp.DeliverResp, qLen),
-		mapKeyInChan:          make(chan string, qLen),
-		ExitSrv:               make(chan struct{}),
-		ATRespSeqID:           make(chan uint32, 1),
-		deliverMsgMap:         cmap.New(),
-		deliverResendCountMap: cmap.New(),
-		rw:                    socket.NewPacketRW(conn),
+		conn:            conn,
+		RemoteAddr:      sess.RemoteAddr,
+		SubmitChan:      make(chan *cmpp.Submit, qLen),
+		commandChan:     make(chan []byte, qLen),
+		hsmChan:         make(chan HTTPSubmitMessageInfo, qLen),
+		deliverRespChan: make(chan cmpp.DeliverResp, qLen),
+		mapKeyInChan:    make(chan string, qLen),
+		ExitSrv:         make(chan struct{}),
+		ATRespSeqID:     make(chan uint32, 1),
+		// deliverMsgMap:         cmap.New(),
+		// deliverResendCountMap: cmap.New(),
+		rw: socket.NewPacketRW(conn),
 		lsm: &LongSmsMap{
 			LongSms: make(map[uint8]*LongSms),
 			mLock:   new(sync.Mutex),
@@ -702,7 +701,7 @@ func (s *SrvConn) UpdateAccout(account AccountsInfo) {
 
 	newBsis := account.BusinessInfo
 	if !slices.Equal(s.GetBusinessInfo(), newBsis) {
-		logger.Debug().Msgf("accout.BusinessInfo 已修改:%v", account.BusinessInfo)
+		s.Logger.Debug().Msgf("账号(%s) accout.BusinessInfo 已修改,newbBsis: %v", s.RunID, newBsis)
 		s.UpdateBusinessInfo(newBsis)
 	}
 }
