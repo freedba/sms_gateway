@@ -294,10 +294,10 @@ func (snd *deliverSender) handleDeliverResp(ctx context.Context) {
 			if resp.Result == 0 {
 				select {
 				case <-s.mapKeyInChan:
-					if s.deliverMsgMap.Has(mapKey) {
-						s.deliverMsgMap.Remove(mapKey)
-					}
 				default:
+				}
+				if s.deliverMsgMap.Has(mapKey) {
+					s.deliverMsgMap.Remove(mapKey)
 				}
 			}
 		case <-timer.C:
@@ -329,6 +329,10 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 			if dwt, ok := s.deliverMsgMap.Get(k); ok {
 				if dwt.retries >= 3 {
 					s.deliverMsgMap.Remove(k)
+					select {
+					case <-s.mapKeyInChan:
+					default:
+					}
 					continue
 				}
 				if now-dwt.sentTime >= int64(30*(dwt.retries+1)) {
