@@ -333,6 +333,8 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 					case <-s.mapKeyInChan:
 					default:
 					}
+					text := fmt.Sprintf("环境(%s), 警告: 账号(%s) 推送回执失败", utils.GetEnv("APP_ENV"), runID)
+					utils.Alarm(text)
 					continue
 				}
 				if now-dwt.sentTime >= int64(30*(dwt.retries+1)) {
