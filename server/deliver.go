@@ -311,6 +311,7 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 	runID := s.RunID
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
+	hasAlarm := false
 	for {
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
@@ -321,6 +322,7 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 		}
 
 		if s.deliverMsgMap.Count() == 0 {
+			hasAlarm = false
 			continue
 		}
 
@@ -335,8 +337,11 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 					case <-s.mapKeyInChan:
 					default:
 					}
-					text := fmt.Sprintf("环境(%s), 警告: 账号(%s) 推送回执失败", utils.GetEnv("APP_ENV"), runID)
-					utils.Alarm(text)
+					if !hasAlarm {
+						text := fmt.Sprintf("环境(%s), 警告: 账号(%s) 推送回执失败", utils.GetEnv("APP_ENV"), runID)
+						utils.Alarm(text)
+						hasAlarm = true
+					}
 					continue
 				}
 				s.Logger.Debug().Msgf("dwt:%v", dwt)
