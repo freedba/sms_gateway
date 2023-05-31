@@ -23,7 +23,7 @@ debug = false
 [mysql]
     user = "root"
     passwd = "e4ZZH7JMgh9e"
-    host = "mysql01.fulong.top:3306"
+    host = "mysql01.fulong.top:30006"
 
 [redis]
     host = "redis01.fulong.top:6379"

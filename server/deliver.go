@@ -312,7 +312,6 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 	timer := time.NewTimer(utils.Timeout)
 	defer timer.Stop()
 	for {
-		now := utils.GetCurrTimestamp("s")
 		utils.ResetTimer(timer, utils.Timeout)
 		select {
 		case <-ctx.Done():
@@ -321,11 +320,14 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 		case <-timer.C:
 		}
 
-		if s.deliverMsgMap.IsEmpty() {
+		if s.deliverMsgMap.Count() == 0 {
 			continue
 		}
+
+		now := utils.GetCurrTimestamp("s")
 		keys := s.deliverMsgMap.Keys()
 		for _, k := range keys {
+			s.Logger.Debug().Msgf("kkkkk:%s", k)
 			if dwt, ok := s.deliverMsgMap.Get(k); ok {
 				if dwt.retries >= 3 {
 					s.deliverMsgMap.Remove(k)
@@ -337,6 +339,7 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 					utils.Alarm(text)
 					continue
 				}
+				s.Logger.Debug().Msgf("dwt:%v", dwt)
 				if now-dwt.sentTime >= int64(30*(dwt.retries+1)) {
 					s.Logger.Debug().Msgf("账号(%s) 重新推送回执信息, retry: %d, dwt.sentTime: %d", runID, dwt.retries, dwt.sentTime)
 					if err := dwt.deliver.IOWrite(s.rw); err != nil {
