@@ -264,7 +264,7 @@ func (snd *deliverSender) msgWrite(ctx context.Context, msg []byte, registerDeli
 		s.Logger.Debug().Msgf("账号(%s) 接收到 ctx.Done() 退出信号，退出 deliverRespMsg 协程....", s.RunID)
 		return nil
 	case <-time.After(time.Second * 30):
-		logger.Error().Msgf("账号(%s) 回执应答超时, msg: %s", s.RunID, d.String())
+		logger.Error().Msgf("账号(%s) 回执应答消费超时, msg: %s", s.RunID, d.String())
 		text := fmt.Sprintf("警告：账号(%s) 回执应答超时", s.RunID)
 		utils.Alarm(text)
 	}
@@ -329,7 +329,6 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 		now := utils.GetCurrTimestamp("s")
 		keys := s.deliverMsgMap.Keys()
 		for _, k := range keys {
-			s.Logger.Debug().Msgf("kkkkk:%s", k)
 			if dwt, ok := s.deliverMsgMap.Get(k); ok {
 				if dwt.retries >= 3 {
 					s.deliverMsgMap.Remove(k)
@@ -344,9 +343,8 @@ func (snd *deliverSender) checkDeliverMsgMap(ctx context.Context) {
 					}
 					continue
 				}
-				s.Logger.Debug().Msgf("dwt:%v", dwt)
 				if now-dwt.sentTime >= int64(30*(dwt.retries+1)) {
-					s.Logger.Debug().Msgf("账号(%s) 重新推送回执信息, retry: %d, dwt.sentTime: %d", runID, dwt.retries, dwt.sentTime)
+					s.Logger.Debug().Msgf("账号(%s) 重新推送回执信息, retry: %d, dwt.sentTime: %d, now: %d", runID, dwt.retries, dwt.sentTime, now)
 					if err := dwt.deliver.IOWrite(s.rw); err != nil {
 						s.Logger.Error().Msgf("账号(%s) resend deliver msg error: %v,retry: %d",
 							runID, err, dwt.retries)

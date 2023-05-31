@@ -478,7 +478,7 @@ func (s *SrvConn) HandleCommand(ctx context.Context) {
 
 			case common.CMPP_DELIVER_RESP:
 				atomic.AddInt64(&s.deliverTaskCount, 1)
-				// s.waitGroup.Wrap(func() { s.handleDeliverResp(data) })
+				s.waitGroup.Wrap(func() { s.handleDeliverResp(data) })
 
 			default:
 				s.Logger.Debug().Msgf("账号(%v) 命令未知, %v\n", runID, *h)
