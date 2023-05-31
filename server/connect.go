@@ -144,7 +144,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		mapKeyInChan:    make(chan string, qLen),
 		ExitSrv:         make(chan struct{}),
 		ATRespSeqID:     make(chan uint32, 1),
-		// deliverMsgMap:         cmap.New(),
+		// deliverMsgMap:         cmap.New[string, *deliverWithTime],
 		// deliverResendCountMap: cmap.New(),
 		rw: socket.NewPacketRW(conn),
 		lsm: &LongSmsMap{
@@ -156,6 +156,7 @@ func HandleNewConn(conn net.Conn, sess *Sessions) {
 		mutex:   new(sync.Mutex),
 		BsiLock: new(sync.RWMutex),
 	}
+	s.deliverMsgMap = cmap.ConcurrentMap[string, *deliverWithTime]{}
 	if FakeGateway == 1 {
 		s.deliverFakeChan = make(chan []byte, qLen)
 	}
