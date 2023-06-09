@@ -271,7 +271,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 	//验证远程登录地址是否在白名单中
 	whiteList := strings.Split(account.AccountHost, ",")
 	if !collection.Collect(whiteList).Contains(sess.RemoteAddr) {
-		logger.Error().Msgf("账号(%s) 登录ip地址(%s)非法!", sourceAddr.String(), sess.RemoteAddr)
+		logger.Error().Msgf("账号(%s) 登录ip地址(%s)非法!", user, sess.RemoteAddr)
 		err = common.ConnectRspResultErrMap[common.ErrnoConnectInvalidSrcAddr]
 		resp.Status = common.ErrnoConnectInvalidSrcAddr
 		return resp, err
@@ -279,7 +279,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 
 	authSrc, err := common.GenAuthSrc(req.SourceAddr.String(), account.CmppPassword, req.Timestamp, 9)
 	if err != nil {
-		logger.Error().Msgf("通道(%s) 生成authSrc信息错误：%v", sourceAddr.String(), err, authSrc)
+		logger.Error().Msgf("账号(%s) 生成authSrc(%s) 信息错误: %v", user, authSrc, err)
 		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
 		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
@@ -287,7 +287,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 
 	reqAuthSrc := req.AuthSrc.Byte()
 	if !bytes.Equal(authSrc, reqAuthSrc) {
-		logger.Error().Msgf("账号(%s) 密码不匹配，auth failed", sourceAddr.String())
+		logger.Error().Msgf("账号(%s) 密码不匹配, auth failed", user)
 		logger.Error().Msgf("authSrc: %v, req.AuthSrc: %v", authSrc, reqAuthSrc)
 		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
 		resp.Status = common.ErrnoConnectAuthFaild
@@ -296,7 +296,7 @@ func (s *SrvConn) NewAuth(buf []byte, sess *Sessions) (*cmpp.ConnResp, error) {
 
 	authImsg, err := common.GenRespAuthSrc(resp.Status, string(authSrc), account.CmppPassword)
 	if err != nil {
-		logger.Debug().Msgf("通道(%s) 生成authImsg信息错误：%v", sourceAddr.String(), err, authImsg)
+		logger.Debug().Msgf("账号(%s) 生成authImsg(%s) 信息错误: %v", user, authImsg,err)
 		err = common.ConnectRspResultErrMap[common.ErrnoConnectAuthFaild]
 		resp.Status = common.ErrnoConnectAuthFaild
 		return resp, err
@@ -571,13 +571,13 @@ EXIT:
 func (s *SrvConn) VerifySubmit(p *cmpp.Submit) uint8 {
 	runID := s.RunID
 	if !s.RateLimit.Available() {
-		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", &runID, s.RateLimit.Lim.Burst())
+		s.Logger.Error().Msgf("账号(%s) 流速控制触发：%d", runID, s.RateLimit.Lim.Burst())
 		return common.ErrnoSubmitNotPassFlowControl
 	}
 
 	if s.LastSeqID == p.SeqId && s.LastSeqID != 0 {
 		s.Logger.Error().Msgf("账号(%s) s.LastSeqId(%d) == h.SeqId(%d) && s.LastSeqId != 0",
-			&runID, s.LastSeqID, p.SeqId)
+			runID, s.LastSeqID, p.SeqId)
 		return common.ErrnoSubmitInvalidSequence
 	}
 

@@ -185,7 +185,7 @@ func (hsm *HTTPSubmitMessageInfo) Wrapper(s *SrvConn) {
 func (hsm HTTPSubmitMessageInfo) enQueue(topicName string, runID string) error {
 	b, err := json.Marshal(hsm)
 	if err != nil {
-		logger.Error().Msgf("账号(%s) json.Marshal error:", runID, err)
+		logger.Error().Msgf("账号(%s) json.Marshal error: %v", runID, err)
 		return err
 	}
 

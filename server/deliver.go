@@ -68,7 +68,7 @@ func DeliverPush(s *SrvConn) {
 	// EXIT:
 	atomic.StoreInt32(&s.deliverSenderExit, 1)
 	if atomic.LoadInt32(&s.ReadLoopRunning) == 1 {
-		s.Logger.Debug().Msgf("账号(%s) close(c.ExitSrv)")
+		s.Logger.Debug().Msgf("账号(%s) close(c.ExitSrv)", s.RunID)
 		utils.CloseChan(&s.ExitSrv, s.mutex)
 	}
 	s.Logger.Debug().Msgf("账号(%s) Exiting DeliverSend...", s.RunID)
@@ -167,7 +167,7 @@ func (snd *deliverSender) cleanChan(msg chan nsq.Message) {
 		}
 		select {
 		case m := <-msg:
-			s.Logger.Info().Msgf("账号(%s) record :%v", m)
+			s.Logger.Info().Msgf("账号(%s) record :%v", s.RunID, m)
 		default:
 			break
 		}
